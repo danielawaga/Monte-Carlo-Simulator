@@ -38,7 +38,9 @@ class MonteCarloSimulator:
                 most_likely=float(item.most_likely),
                 maximum=float(item.maximum),
             )
-            item_samples[item.name] = distribution.sample(rng, config.number_of_simulations)
+            item_samples[item.name] = distribution.sample(
+                rng, config.number_of_simulations
+            )
 
         total_samples = item_samples.sum(axis=1).to_numpy()
         logger.info(
@@ -48,4 +50,6 @@ class MonteCarloSimulator:
         )
 
         summary = compute_summary_statistics(total_samples, config.confidence_levels)
-        return SimulationResult(samples=total_samples, summary=summary, item_samples=item_samples)
+        return SimulationResult(
+            samples=total_samples, summary=summary, item_samples=item_samples
+        )
