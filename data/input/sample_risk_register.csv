@@ -1,0 +1,6 @@
+name,distribution,minimum,most_likely,maximum,category,unit
+Studies,triangular,10000,15000,22000,engineering,EUR
+Development,triangular,30000,45000,70000,engineering,EUR
+Testing,triangular,12000,20000,32000,quality,EUR
+Documentation,triangular,4000,7000,12000,management,EUR
+Deployment,triangular,8000,13000,21000,operations,EUR

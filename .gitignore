@@ -1,0 +1,26 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+.env
+*.tmp
+*.log
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Data outputs and confidential source files
+data/output/*
+!data/output/.gitkeep
+*.xlsx
+*.xls
+!data/input/*.csv
+
+# NOTE: Real risk registers must not be versioned without anonymization and authorization.
