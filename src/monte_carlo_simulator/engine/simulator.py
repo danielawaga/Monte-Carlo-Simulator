@@ -21,9 +21,9 @@ class MonteCarloSimulator:
         if not items:
             raise ValidationError("At least one risk item is required.")
 
-        item_names = [item.name for item in items]
+        item_names = [item.name.casefold() for item in items]
         if len(item_names) != len(set(item_names)):
-            raise ValidationError("Risk item names must be unique.")
+            raise ValidationError("Risk item names must be unique (case-insensitive).")
 
         rng = np.random.default_rng(config.random_seed)
         item_samples = pd.DataFrame(index=range(config.number_of_simulations))

@@ -4,7 +4,11 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from monte_carlo_simulator.distributions.base import BaseDistribution
+from monte_carlo_simulator.distributions.base import (
+    BaseDistribution,
+    _as_finite_float,
+    _validated_sample_size,
+)
 from monte_carlo_simulator.exceptions import ValidationError
 
 
@@ -14,12 +18,14 @@ class UniformDistribution(BaseDistribution):
     maximum: float
 
     def __post_init__(self) -> None:
-        if not np.isfinite(self.minimum) or not np.isfinite(self.maximum):
-            raise ValidationError("Uniform parameters must be finite numbers.")
+        self.minimum = _as_finite_float(self.minimum, "minimum")
+        self.maximum = _as_finite_float(self.maximum, "maximum")
         if self.minimum > self.maximum:
             raise ValidationError("Uniform parameters must satisfy minimum <= maximum.")
 
     def sample(self, rng: np.random.Generator, size: int) -> np.ndarray:
+        size = _validated_sample_size(size)
         if self.minimum == self.maximum:
             return np.full(size, self.minimum, dtype=float)
-        return rng.uniform(self.minimum, self.maximum, size=size)
+        unit_samples = rng.random(size=size)
+        return (1.0 - unit_samples) * self.minimum + unit_samples * self.maximum
