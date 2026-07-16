@@ -77,3 +77,8 @@ def test_confidence_levels_are_normalized_to_python_floats() -> None:
 
     assert config.confidence_levels == (0.5, 0.9)
     assert all(isinstance(level, float) for level in config.confidence_levels)
+
+
+def test_duplicate_confidence_levels_are_rejected() -> None:
+    with pytest.raises(ValidationError, match="duplicates"):
+        SimulationConfig(confidence_levels=(0.95, 0.950))
