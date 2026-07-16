@@ -12,18 +12,20 @@ This repository hosts an academic project to model uncertainty on project costs/
 
 ## 3. Currently available features
 - Layered project architecture with clear packages.
-- Week-1 functional proof of concept based on triangular distributions.
-- 10,000 vectorized simulations on five fictive cost items.
+- Vectorized and reproducible Monte Carlo engine.
+- Six distributions: triangular, Beta-PERT, uniform, normal, log-normal and event-based.
+- Validation of distribution parameters and unique risk-item names.
+- 10,000+ simulations on heterogeneous cost or duration items.
 - Summary statistics: mean, median, std, min, max, P50, P80, P90.
 - Histogram export with percentile markers.
 - Basic CLI and initial Streamlit skeleton.
 
 ## 4. Planned features
-- Excel risk register ingestion and richer validation.
-- Additional distributions (PERT, normal, lognormal, uniform, event).
+- Excel risk register ingestion, schema validation and workbook template.
 - Correlations with Cholesky decomposition.
-- Tornado chart, S-curve, advanced exports.
+- Tornado chart, S-curve and convergence diagnostics.
 - Interactive Streamlit workflow.
+- Scenario comparison and automated decision-ready exports.
 
 ## 5. Installation
 ### Windows PowerShell
@@ -70,4 +72,4 @@ streamlit_app/
 
 ## 10. Confidentiality
 - Do not commit real risk registers without anonymization and authorization.
-- Do not add confidential project, personal, or client data.
+- Do not add confidential project, personal or client data.
