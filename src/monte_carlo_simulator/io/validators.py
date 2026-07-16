@@ -175,7 +175,9 @@ def dataframe_to_validated_risk_items(
     for dataframe_index, series in dataframe.iterrows():
         record = series.to_dict()
         excel_row = _excel_row(record.get("_excel_row"), dataframe_index)
-        enabled = _parse_enabled(record.get("enabled"), excel_row, issues)
+        raw_name = record.get("name")
+        context_name = raw_name.strip() if isinstance(raw_name, str) and raw_name.strip() else None
+        enabled = _parse_enabled(record.get("enabled"), excel_row, context_name, issues)
         if enabled is None:
             continue
         if not enabled:
@@ -481,6 +483,7 @@ def _domain_issue(
 def _parse_enabled(
     value: object,
     row: int,
+    item_name: str | None,
     issues: list[RiskRegisterIssue],
 ) -> bool | None:
     if _is_blank(value):
@@ -499,6 +502,7 @@ def _parse_enabled(
         RiskRegisterIssue(
             sheet=RISK_REGISTER_SHEET,
             row=row,
+            item_name=item_name,
             field="enabled",
             value=value,
             message="enabled must be TRUE, FALSE, 1, 0 or empty.",

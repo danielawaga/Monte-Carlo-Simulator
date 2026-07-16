@@ -515,7 +515,8 @@ def test_invalid_enabled_values_are_rejected(excel_workbook_factory, enabled: ob
     with pytest.raises(RiskRegisterValidationError) as caught:
         load_risk_register(path)
 
-    assert any(issue.field == "enabled" for issue in caught.value.issues)
+    enabled_issue = next(issue for issue in caught.value.issues if issue.field == "enabled")
+    assert enabled_issue.item_name == "Enabled value"
     assert any("active" in issue.message for issue in caught.value.issues)
 
 
