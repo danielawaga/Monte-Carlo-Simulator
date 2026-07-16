@@ -10,8 +10,11 @@ La taille demandée doit être un entier strictement positif.
 
 ## Lois prises en charge
 
-Tous les paramètres requis doivent être des nombres réels finis : les booléens, chaînes, nombres
-complexes, `NaN` et infinis sont refusés.
+Dans l'API Python, tous les paramètres requis doivent être des nombres réels finis : les booléens,
+chaînes, nombres complexes, `NaN` et infinis sont refusés. À la frontière Excel, une chaîne
+numérique finie est convertie explicitement ; les chaînes arbitraires, booléens et valeurs non
+finies sont refusés. Les cellules vides, les valeurs `NaN` et les chaînes composées uniquement
+d'espaces sont considérées comme absentes.
 
 ### Triangulaire
 
@@ -105,9 +108,24 @@ sur les tirages individuels ; la seule boucle du moteur porte sur les postes du 
 
 ## Percentiles
 
-Les percentiles P50, P80 et P90 donnent les seuils sous lesquels se trouvent respectivement 50 %,
-80 % et 90 % des résultats simulés. La configuration accepte un tuple non vide de niveaux finis
-strictement compris entre 0 et 1.
+Les percentiles donnent les seuils sous lesquels se trouve la proportion correspondante des
+résultats simulés. La configuration accepte un tuple non vide de niveaux finis strictement compris
+entre 0 et 1. Le libellé conserve les décimales significatives : `0.50` devient `P50`, `0.951`
+devient `P95.1` et `0.995` devient `P99.5`. Les niveaux dupliqués et toute collision de libellé
+résiduelle sont refusés ; aucun quantile n'en écrase un autre dans le résumé.
+
+## Registre Excel et baseline
+
+Le schéma Excel `1.0` est une frontière d'entrée, pas une nouvelle méthode probabiliste. Une ligne
+active validée devient exactement un `RiskItem`. Les lignes désactivées sont ignorées avant la
+validation de leurs paramètres. Toutes les unités actives doivent correspondre à `default_unit`
+(comparaison sans tenir compte de la casse) ; aucune conversion monétaire ou temporelle n'est
+effectuée.
+
+`baseline_estimate` est une référence finie facultative pour comparer les résultats à une
+estimation de départ. Elle n'entre pas dans l'équation d'agrégation et n'est jamais ajoutée
+implicitement. Si la baseline doit faire partie du total, elle doit être représentée par un poste
+déterministe explicite. Cette décision évite une double comptabilisation silencieuse.
 
 ## Value at Risk
 
@@ -123,4 +141,6 @@ stabilisent. Le projet ne fournit pas encore de diagnostic automatique de conver
 ## Fonctionnalités hors périmètre actuel
 
 Les corrélations, la décomposition de Cholesky, l'analyse de sensibilité, le diagramme de tornade,
-la courbe en S et l'import Excel complet ne sont pas implémentés dans le moteur actuel.
+la courbe en S, la convergence automatique, la comparaison de scénarios et les exports PDF ou
+PowerPoint ne sont pas implémentés. L'import Excel versionné, en revanche, est opérationnel via la
+CLI et le service applicatif.
