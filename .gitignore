@@ -22,5 +22,6 @@ data/output/*
 *.xlsx
 *.xls
 !data/input/*.csv
+!data/templates/risk_register_template.xlsx
 
 # NOTE: Real risk registers must not be versioned without anonymization and authorization.
