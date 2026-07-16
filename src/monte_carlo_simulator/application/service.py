@@ -4,7 +4,13 @@ from pathlib import Path
 
 from monte_carlo_simulator.config import OUTPUT_DIR
 from monte_carlo_simulator.engine import MonteCarloSimulator
-from monte_carlo_simulator.models import RiskItem, SimulationConfig, SimulationResult
+from monte_carlo_simulator.io import export_summary_to_csv, load_risk_register
+from monte_carlo_simulator.models import (
+    ExcelSimulationRun,
+    RiskItem,
+    SimulationConfig,
+    SimulationResult,
+)
 from monte_carlo_simulator.visualization.histogram import save_histogram
 
 
@@ -72,3 +78,36 @@ def run_demo_simulation(
     histogram_path = target_dir / "triangular_histogram.png"
     save_histogram(result.samples, result.summary, histogram_path)
     return result, histogram_path
+
+
+def run_simulation_from_excel(
+    file_path: str | Path,
+    config: SimulationConfig | None = None,
+    output_dir: str | Path | None = None,
+) -> ExcelSimulationRun:
+    """Validate an Excel risk register, simulate it and persist its artifacts."""
+    register = load_risk_register(file_path)
+    simulation_config = config or SimulationConfig()
+    result = MonteCarloSimulator().run(register.items, simulation_config)
+
+    target_dir = Path(output_dir) if output_dir is not None else OUTPUT_DIR
+    histogram_path = target_dir / "simulation_histogram.png"
+    summary_path = target_dir / "simulation_summary.csv"
+    analysis_label = register.metadata.analysis_type.capitalize()
+    save_histogram(
+        result.samples,
+        result.summary,
+        histogram_path,
+        title=f"Monte Carlo Total {analysis_label} Distribution",
+        x_label=f"Total {register.metadata.analysis_type} ({register.metadata.default_unit})",
+    )
+    export_summary_to_csv(result.summary, summary_path)
+
+    source_path = register.source_path or Path(file_path).resolve()
+    return ExcelSimulationRun(
+        result=result,
+        metadata=register.metadata,
+        histogram_path=histogram_path,
+        summary_path=summary_path,
+        source_path=source_path,
+    )
