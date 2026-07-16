@@ -1,5 +1,6 @@
 from .base import BaseDistribution
 from .event import EventDistribution
+from .factory import build_distribution
 from .lognormal import LogNormalDistribution
 from .normal import NormalDistribution
 from .pert import PertDistribution
@@ -14,4 +15,5 @@ __all__ = [
     "LogNormalDistribution",
     "UniformDistribution",
     "EventDistribution",
+    "build_distribution",
 ]
