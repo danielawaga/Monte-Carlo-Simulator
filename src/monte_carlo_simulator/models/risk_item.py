@@ -21,14 +21,22 @@ _DISTRIBUTION_ALIASES = {
     "log-normal": "lognormal",
     "log_normal": "lognormal",
 }
-_SUPPORTED_DISTRIBUTIONS = {
-    "triangular",
-    "pert",
-    "uniform",
-    "normal",
-    "lognormal",
-    "event",
-}
+SUPPORTED_DISTRIBUTIONS = frozenset(
+    {
+        "triangular",
+        "pert",
+        "uniform",
+        "normal",
+        "lognormal",
+        "event",
+    }
+)
+
+
+def normalize_distribution_name(distribution: str) -> str:
+    """Normalize a supported distribution name or alias to its canonical name."""
+    normalized = distribution.strip().casefold()
+    return _DISTRIBUTION_ALIASES.get(normalized, normalized)
 
 
 @dataclass(slots=True)
@@ -45,6 +53,7 @@ class RiskItem:
     category: str | None = None
     unit: str | None = None
     lambda_shape: float = 4.0
+    notes: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.name, str):
@@ -55,9 +64,8 @@ class RiskItem:
 
         if not isinstance(self.distribution, str):
             raise ValidationError("Risk item distribution must be a string.")
-        raw_distribution = self.distribution.strip().casefold()
-        self.distribution = _DISTRIBUTION_ALIASES.get(raw_distribution, raw_distribution)
-        if self.distribution not in _SUPPORTED_DISTRIBUTIONS:
+        self.distribution = normalize_distribution_name(self.distribution)
+        if self.distribution not in SUPPORTED_DISTRIBUTIONS:
             raise ValidationError(
                 f"Unsupported distribution '{self.distribution}' for risk item '{self.name}'."
             )

@@ -1,14 +1,27 @@
-"""CLI entrypoint for the week-1 Monte Carlo proof of concept."""
+"""Command-line entrypoint for Excel and demonstration simulations."""
 
 import argparse
+from collections.abc import Sequence
 from pathlib import Path
 
-from monte_carlo_simulator.application.service import run_demo_simulation
+from monte_carlo_simulator.application.service import (
+    run_demo_simulation,
+    run_simulation_from_excel,
+)
+from monte_carlo_simulator.exceptions import MonteCarloError
 from monte_carlo_simulator.models import SimulationConfig
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run the Monte Carlo triangular demo simulation.")
+    parser = argparse.ArgumentParser(
+        description="Run a Monte Carlo simulation from a schema-v1 Excel risk register."
+    )
+    parser.add_argument(
+        "--input",
+        type=Path,
+        default=None,
+        help="Path to a schema-v1 .xlsx risk register; omit to run the built-in demo",
+    )
     parser.add_argument(
         "--simulations", type=int, default=10_000, help="Number of Monte Carlo draws"
     )
@@ -22,16 +35,40 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> None:
-    args = build_parser().parse_args()
-    config = SimulationConfig(number_of_simulations=args.simulations, random_seed=args.seed)
-    result, histogram_path = run_demo_simulation(config=config, output_dir=args.output_dir)
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    try:
+        config = SimulationConfig(number_of_simulations=args.simulations, random_seed=args.seed)
+        if args.input is None:
+            result, histogram_path = run_demo_simulation(
+                config=config,
+                output_dir=args.output_dir,
+            )
+            artifact_lines = [f"Histogram saved to: {histogram_path}"]
+        else:
+            run = run_simulation_from_excel(
+                args.input,
+                config=config,
+                output_dir=args.output_dir,
+            )
+            result = run.result
+            artifact_lines = [
+                f"Project: {run.metadata.project_name}",
+                f"Analysis: {run.metadata.analysis_type} ({run.metadata.default_unit})",
+                f"Histogram saved to: {run.histogram_path}",
+                f"Summary saved to: {run.summary_path}",
+            ]
+    except MonteCarloError as exc:
+        parser.error(str(exc))
 
     print("Monte Carlo simulation completed.")
     print("Summary statistics:")
     print(result.summary.to_string(index=False))
-    print(f"Histogram saved to: {histogram_path}")
+    for line in artifact_lines:
+        print(line)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

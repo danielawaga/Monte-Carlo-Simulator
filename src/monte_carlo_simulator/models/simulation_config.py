@@ -44,4 +44,6 @@ class SimulationConfig:
             ):
                 raise ValidationError("confidence_levels must be finite values in (0, 1).")
             normalized_levels.append(float(level))
+        if len(normalized_levels) != len(set(normalized_levels)):
+            raise ValidationError("confidence_levels must not contain duplicates.")
         self.confidence_levels = tuple(normalized_levels)
