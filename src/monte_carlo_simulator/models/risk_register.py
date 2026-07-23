@@ -43,8 +43,15 @@ class ExcelSimulationRun:
     histogram_path: Path
     summary_path: Path
     source_path: Path
+    sensitivity_path: Path | None = None
+    tornado_path: Path | None = None
 
     @property
-    def artifact_paths(self) -> tuple[Path, Path]:
+    def artifact_paths(self) -> tuple[Path, ...]:
         """Return all generated artifact paths."""
-        return self.histogram_path, self.summary_path
+        paths = [self.histogram_path, self.summary_path]
+        if self.sensitivity_path is not None:
+            paths.append(self.sensitivity_path)
+        if self.tornado_path is not None:
+            paths.append(self.tornado_path)
+        return tuple(paths)

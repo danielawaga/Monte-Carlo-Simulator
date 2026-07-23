@@ -2,9 +2,15 @@
 
 from pathlib import Path
 
+from monte_carlo_simulator.analysis import build_tornado_data, compute_spearman_sensitivity
 from monte_carlo_simulator.config import OUTPUT_DIR
 from monte_carlo_simulator.engine import MonteCarloSimulator
-from monte_carlo_simulator.io import export_summary_to_csv, load_risk_register
+from monte_carlo_simulator.exceptions import ValidationError
+from monte_carlo_simulator.io import (
+    export_sensitivity_to_csv,
+    export_summary_to_csv,
+    load_risk_register,
+)
 from monte_carlo_simulator.models import (
     ExcelSimulationRun,
     RiskItem,
@@ -12,6 +18,7 @@ from monte_carlo_simulator.models import (
     SimulationResult,
 )
 from monte_carlo_simulator.visualization.histogram import save_histogram
+from monte_carlo_simulator.visualization.tornado import build_tornado_chart
 
 
 def create_sample_risk_items() -> list[RiskItem]:
@@ -97,6 +104,8 @@ def run_simulation_from_excel(
     target_dir = Path(output_dir) if output_dir is not None else OUTPUT_DIR
     histogram_path = target_dir / "simulation_histogram.png"
     summary_path = target_dir / "simulation_summary.csv"
+    sensitivity_path = target_dir / "sensitivity_summary.csv"
+    tornado_path = target_dir / "sensitivity_tornado.png"
     analysis_label = register.metadata.analysis_type.capitalize()
     save_histogram(
         result.samples,
@@ -106,6 +115,12 @@ def run_simulation_from_excel(
         x_label=f"Total {register.metadata.analysis_type} ({register.metadata.default_unit})",
     )
     export_summary_to_csv(result.summary, summary_path)
+    if result.item_samples is None:
+        raise ValidationError("Sensitivity analysis requires SimulationResult.item_samples.")
+    sensitivity = compute_spearman_sensitivity(result.item_samples, result.samples)
+    export_sensitivity_to_csv(sensitivity, sensitivity_path)
+    tornado_data = build_tornado_data(sensitivity)
+    build_tornado_chart(tornado_data, tornado_path)
 
     source_path = register.source_path or Path(file_path).resolve()
     return ExcelSimulationRun(
@@ -114,4 +129,6 @@ def run_simulation_from_excel(
         histogram_path=histogram_path,
         summary_path=summary_path,
         source_path=source_path,
+        sensitivity_path=sensitivity_path,
+        tornado_path=tornado_path,
     )

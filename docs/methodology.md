@@ -148,3 +148,23 @@ l'analyse de sensibilité, le diagramme de tornade,
 la courbe en S, la convergence automatique, la comparaison de scénarios et les exports PDF ou
 PowerPoint ne sont pas implémentés. L'import Excel versionné, en revanche, est opérationnel via la
 CLI et le service applicatif.
+
+## Sensitivity methodology: Spearman rank correlation
+
+For each risk item, the V1 sensitivity analysis computes Spearman's rho between that item's
+simulated samples and the simulated total. Spearman is a rank-based monotonic association
+measure in `[-1, 1]`; unlike Pearson correlation, it does not assume a linear relationship
+or normal marginals, so it is appropriate for triangular, PERT, uniform, normal,
+log-normal and event distributions, including ties from Bernoulli-style events.
+
+Deterministic item columns are constant and therefore undefined for Spearman correlation.
+They are explicitly flagged as `constant_input` instead of being assigned zero. Defined
+items are ranked by `abs(rho)` with deterministic tie-breaking by the original item order.
+Positive rho means larger item samples tend to accompany larger totals; negative rho means
+larger item samples tend to accompany smaller totals; values close to zero indicate weak
+monotone association.
+
+With correlated inputs, Spearman coefficients remain descriptive associations with the
+total. They are not causal effects, not an additive variance decomposition, and their
+absolute values are not normalized to 100 %. Correlated items can share apparent importance,
+so the ranking should be used as a decision aid rather than proof of isolated causality.

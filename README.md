@@ -144,3 +144,25 @@ streamlit_app/
 - Do not add confidential project, personal or client data.
 - `.xlsx` and `.xls` files remain ignored globally; only the public fictitious template is
   explicitly allowed by `.gitignore`.
+
+## Analyse de sensibilité Spearman et tornado
+
+Le workflow Excel produit désormais quatre artefacts dans le dossier de sortie :
+`simulation_summary.csv`, `simulation_histogram.png`, `sensitivity_summary.csv` et
+`sensitivity_tornado.png`. Le tableau `sensitivity_summary.csv` contient les colonnes
+`item_name`, `spearman_rho`, `absolute_rho`, `rank`, `direction`, `is_defined` et
+`undefined_reason`.
+
+La sensibilité V1 utilise la corrélation de rang de Spearman entre les tirages de chaque
+poste (`SimulationResult.item_samples`) et le total simulé. Spearman mesure une association
+monotone par rangs : il est plus robuste que Pearson pour les distributions non normales,
+asymétriques ou événementielles avec de nombreux ex æquo. Les postes déterministes ont une
+corrélation mathématiquement indéfinie ; ils sont exportés avec `spearman_rho = NaN`,
+`absolute_rho = NaN`, sans rang, `direction = undefined`, `is_defined = False` et
+`undefined_reason = constant_input`, puis exclus par défaut du tornado.
+
+Le signe indique le sens de l'association monotone (`positive`, `negative` ou `neutral`) et
+la valeur absolue sert uniquement au classement. Lorsque des entrées sont corrélées, ces
+coefficients ne sont pas causaux, ne décomposent pas additivement la variance et ne doivent
+pas être normalisés pour sommer à 100 %. Plusieurs postes corrélés peuvent partager ou
+transférer une partie de leur importance apparente.
