@@ -2,8 +2,13 @@
 
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
+
+from monte_carlo_simulator.analysis.statistics import compute_summary_statistics
 from monte_carlo_simulator.config import OUTPUT_DIR
-from monte_carlo_simulator.engine import MonteCarloSimulator
+from monte_carlo_simulator.distributions import build_distribution
+from monte_carlo_simulator.engine import GaussianCopulaSampler, MonteCarloSimulator
 from monte_carlo_simulator.io import export_summary_to_csv, load_risk_register
 from monte_carlo_simulator.models import (
     ExcelSimulationRun,
@@ -88,7 +93,21 @@ def run_simulation_from_excel(
     """Validate an Excel risk register, simulate it and persist its artifacts."""
     register = load_risk_register(file_path)
     simulation_config = config or SimulationConfig()
-    result = MonteCarloSimulator().run(register.items, simulation_config)
+    if register.correlation_matrix is None:
+        result = MonteCarloSimulator().run(register.items, simulation_config)
+    else:
+        rng = np.random.default_rng(simulation_config.random_seed)
+        distributions = [build_distribution(item) for item in register.items]
+        samples = GaussianCopulaSampler(register.correlation_matrix).sample(
+            distributions, rng, simulation_config.number_of_simulations
+        )
+        item_samples = pd.DataFrame(samples, columns=[item.name for item in register.items])
+        total_samples = item_samples.sum(axis=1).to_numpy()
+        result = SimulationResult(
+            total_samples,
+            compute_summary_statistics(total_samples, simulation_config.confidence_levels),
+            item_samples,
+        )
 
     target_dir = Path(output_dir) if output_dir is not None else OUTPUT_DIR
     histogram_path = target_dir / "simulation_histogram.png"

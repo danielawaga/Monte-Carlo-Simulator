@@ -44,10 +44,10 @@ Le projet conserve sept couches explicites : `models`, `distributions`, `engine`
 
 ```text
 workbook .xlsx
-  -> extraction metadata + risk_register + lignes source
+  -> extraction metadata + risk_register + correlations optionnelles + lignes source
   -> validation agrégée (RiskRegisterValidationError)
-  -> RiskRegisterMetadata + list[RiskItem]
-  -> MonteCarloSimulator
+  -> RiskRegisterMetadata + list[RiskItem] + CorrelationMatrix optionnelle
+  -> MonteCarloSimulator ou GaussianCopulaSampler
   -> SimulationResult
   -> CSV + histogramme + ExcelSimulationRun
 ```
@@ -62,6 +62,4 @@ erreurs de programmation en messages métier.
 
 ## Frontières actuelles
 
-La CLI est opérationnelle. `streamlit_app` reste un squelette. Les modules réservés aux
-corrélations, convergence, sensibilité, courbe en S et tornade ne constituent pas des
-fonctionnalités implémentées.
+La CLI est opérationnelle. `streamlit_app` reste un squelette. Les modules de convergence, sensibilité, courbe en S et tornade restent hors périmètre. Les corrélations par copule gaussienne sont implémentées pour les classeurs Excel qui fournissent une matrice strictement définie positive.

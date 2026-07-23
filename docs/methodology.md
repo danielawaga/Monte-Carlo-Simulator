@@ -127,6 +127,10 @@ estimation de départ. Elle n'entre pas dans l'équation d'agrégation et n'est 
 implicitement. Si la baseline doit faire partie du total, elle doit être représentée par un poste
 déterministe explicite. Cette décision évite une double comptabilisation silencieuse.
 
+## Corrélations
+
+Une feuille Excel `correlations` optionnelle définit une matrice par noms de postes actifs. Les lignes et colonnes peuvent être dans des ordres différents : elles sont validées séparément puis réordonnées avant la construction de `CorrelationMatrix`. La simulation corrélée utilise une copule gaussienne, une décomposition de Cholesky et les fonctions quantiles (`ppf`) des six distributions.
+
 ## Value at Risk
 
 Dans ce projet, la VaR au niveau de confiance `q` correspond au quantile `q` de la distribution
@@ -140,7 +144,7 @@ stabilisent. Le projet ne fournit pas encore de diagnostic automatique de conver
 
 ## Fonctionnalités hors périmètre actuel
 
-Les corrélations, la décomposition de Cholesky, l'analyse de sensibilité, le diagramme de tornade,
+l'analyse de sensibilité, le diagramme de tornade,
 la courbe en S, la convergence automatique, la comparaison de scénarios et les exports PDF ou
 PowerPoint ne sont pas implémentés. L'import Excel versionné, en revanche, est opérationnel via la
 CLI et le service applicatif.

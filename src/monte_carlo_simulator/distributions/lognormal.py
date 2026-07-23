@@ -2,12 +2,15 @@
 
 from dataclasses import dataclass
 from math import log, sqrt
+from typing import cast
 
 import numpy as np
+from scipy.stats import lognorm
 
 from monte_carlo_simulator.distributions.base import (
     BaseDistribution,
     _as_finite_float,
+    _validate_probabilities,
     _validated_sample_size,
 )
 from monte_carlo_simulator.exceptions import ValidationError
@@ -27,6 +30,13 @@ class LogNormalDistribution(BaseDistribution):
             raise ValidationError("Log-normal mean must be strictly positive.")
         if self.standard_deviation < 0:
             raise ValidationError("Log-normal standard_deviation must be non-negative.")
+
+    def ppf(self, probabilities: object) -> np.ndarray:
+        probabilities = _validate_probabilities(probabilities)
+        if self.standard_deviation == 0:
+            return np.full(probabilities.shape, self.mean, dtype=float)
+        log_mean, log_sigma = self._log_space_parameters()
+        return cast(np.ndarray, lognorm.ppf(probabilities, s=log_sigma, scale=np.exp(log_mean)))
 
     def sample(self, rng: np.random.Generator, size: int) -> np.ndarray:
         size = _validated_sample_size(size)

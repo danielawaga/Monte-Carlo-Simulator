@@ -56,3 +56,5 @@ DISTRIBUTION_REQUIRED_PARAMETERS: dict[str, tuple[str, ...]] = {
 }
 
 SUPPORTED_ANALYSIS_TYPES = frozenset({"cost", "duration"})
+
+CORRELATIONS_SHEET = "correlations"
