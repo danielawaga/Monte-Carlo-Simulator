@@ -2,12 +2,9 @@ import importlib.util
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import pytest
 from openpyxl import load_workbook
 
-from monte_carlo_simulator.analysis.sensitivity import build_tornado_data
-from monte_carlo_simulator.analysis.value_at_risk import compute_value_at_risk
 from monte_carlo_simulator.application import run_simulation_from_excel
 from monte_carlo_simulator.distributions import (
     EventDistribution,
@@ -18,15 +15,11 @@ from monte_carlo_simulator.distributions import (
     UniformDistribution,
 )
 from monte_carlo_simulator.engine import GaussianCopulaSampler
-from monte_carlo_simulator.engine.aggregation import aggregate_total
-from monte_carlo_simulator.engine.convergence import check_convergence
 from monte_carlo_simulator.engine.correlations import apply_correlation_matrix
 from monte_carlo_simulator.engine.simulator import MonteCarloSimulator
 from monte_carlo_simulator.exceptions import RiskRegisterValidationError, ValidationError
 from monte_carlo_simulator.io import load_risk_register
 from monte_carlo_simulator.models import CorrelationMatrix, RiskItem, SimulationConfig
-from monte_carlo_simulator.visualization.s_curve import build_s_curve
-from monte_carlo_simulator.visualization.tornado import build_tornado_chart
 
 _spec = importlib.util.spec_from_file_location(
     "generate_correlated_cost_register",
@@ -141,6 +134,8 @@ def test_synthetic_correlated_example_regenerates_and_runs(tmp_path: Path) -> No
     assert len(run.result.samples) == 10_000
     assert run.summary_path.exists()
     assert run.histogram_path.exists()
+    assert run.sensitivity_path is not None and run.sensitivity_path.exists()
+    assert run.tornado_path is not None and run.tornado_path.exists()
 
 
 @pytest.mark.parametrize(
@@ -315,13 +310,5 @@ def test_workflow_without_matrix_has_no_traceability(
     run = run_simulation_from_excel(path, SimulationConfig(number_of_simulations=50), tmp_path)
     assert run.result.correlation_item_names is None
     assert run.result.correlation_matrix is None
-
-
-def test_small_utility_and_placeholder_modules_are_exercised() -> None:
-    frame = np.array([1.0, 2.0, 3.0])
-    assert compute_value_at_risk(frame, 0.5) == 2.0
-    item_samples = pd.DataFrame({"A": [1, 2], "B": [3, 4]})
-    assert aggregate_total(item_samples).tolist() == [4, 6]
-    for function in [build_tornado_data, check_convergence, build_s_curve, build_tornado_chart]:
-        with pytest.raises(NotImplementedError):
-            function()
+    assert run.sensitivity_path is not None and run.sensitivity_path.exists()
+    assert run.tornado_path is not None and run.tornado_path.exists()

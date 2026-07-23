@@ -63,3 +63,16 @@ erreurs de programmation en messages métier.
 ## Frontières actuelles
 
 La CLI est opérationnelle. `streamlit_app` reste un squelette. Les modules de convergence, sensibilité, courbe en S et tornade restent hors périmètre. Les corrélations par copule gaussienne sont implémentées pour les classeurs Excel qui fournissent une matrice strictement définie positive.
+
+## Sensitivity and tornado V1
+
+`analysis/sensitivity.py` owns the Spearman computation and tornado-data preparation.
+`visualization/tornado.py` only renders Matplotlib figures. `application/service.py`
+orchestrates the Excel workflow after simulation by reusing `SimulationResult.item_samples`
+and `SimulationResult.samples`; the engine remains limited to sample generation and total
+aggregation.
+
+Excel runs now persist `sensitivity_summary.csv` and `sensitivity_tornado.png` in addition
+to the historical summary CSV and histogram PNG. `ExcelSimulationRun` exposes the new
+`sensitivity_path` and `tornado_path` fields while keeping `histogram_path`, `summary_path`
+and `source_path` unchanged.
