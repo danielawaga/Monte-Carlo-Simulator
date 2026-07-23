@@ -7,6 +7,7 @@ from zipfile import BadZipFile
 import numpy as np
 import pandas as pd
 from openpyxl import load_workbook as openpyxl_load_workbook
+from openpyxl.utils import get_column_letter
 from openpyxl.utils.exceptions import InvalidFileException
 from openpyxl.workbook.workbook import Workbook
 
@@ -303,7 +304,7 @@ def _extract_risk_register_dataframe(
 
 
 def _cell_name(col_index: int, row_number: int) -> str:
-    return f"{chr(65 + col_index)}{row_number}"
+    return f"{get_column_letter(col_index + 1)}{row_number}"
 
 
 def _extract_correlation_matrix(

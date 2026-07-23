@@ -45,6 +45,9 @@ class GaussianCopulaSampler:
         normals = rng.standard_normal(size=(size, dimension))
         correlated = normals @ self._cholesky.T
         probabilities = norm.cdf(correlated)
+        lower = np.nextafter(0.0, 1.0)
+        upper = np.nextafter(1.0, 0.0)
+        probabilities = np.clip(probabilities, lower, upper)
         return np.column_stack(
             [
                 distribution.ppf(probabilities[:, index])

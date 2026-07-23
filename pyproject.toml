@@ -55,13 +55,3 @@ warn_return_any = true
 warn_unused_configs = true
 mypy_path = "src"
 ignore_missing_imports = true
-
-[tool.coverage.run]
-omit = [
-  "src/monte_carlo_simulator/analysis/sensitivity.py",
-  "src/monte_carlo_simulator/analysis/value_at_risk.py",
-  "src/monte_carlo_simulator/engine/aggregation.py",
-  "src/monte_carlo_simulator/engine/convergence.py",
-  "src/monte_carlo_simulator/visualization/s_curve.py",
-  "src/monte_carlo_simulator/visualization/tornado.py",
-]
