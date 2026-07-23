@@ -36,7 +36,25 @@ def test_end_to_end_excel_simulation_creates_artifacts(tmp_path: Path) -> None:
     assert {"P50", "P95.1", "P99.5"} <= set(run.result.summary.columns)
     assert run.histogram_path.exists()
     assert run.summary_path.exists()
-    assert run.artifact_paths == (run.histogram_path, run.summary_path)
+    assert run.sensitivity_path is not None and run.sensitivity_path.exists()
+    assert run.tornado_path is not None and run.tornado_path.exists()
+    assert run.artifact_paths == (
+        run.histogram_path,
+        run.summary_path,
+        run.sensitivity_path,
+        run.tornado_path,
+    )
+    saved_sensitivity = pd.read_csv(run.sensitivity_path)
+    assert list(saved_sensitivity.columns) == [
+        "item_name",
+        "spearman_rho",
+        "absolute_rho",
+        "rank",
+        "direction",
+        "is_defined",
+        "undefined_reason",
+    ]
+    assert saved_sensitivity["rank"].dropna().is_monotonic_increasing
     saved_summary = pd.read_csv(run.summary_path)
     pd.testing.assert_frame_equal(saved_summary, run.result.summary)
 
@@ -79,8 +97,12 @@ def test_cli_runs_from_excel_input(tmp_path: Path) -> None:
     assert completed.returncode == 0, completed.stderr
     assert "Monte Carlo simulation completed." in completed.stdout
     assert "Fictitious Infrastructure Project" in completed.stdout
+    assert "Sensitivity saved to:" in completed.stdout
+    assert "Tornado chart saved to:" in completed.stdout
     assert (output_dir / "simulation_histogram.png").exists()
     assert (output_dir / "simulation_summary.csv").exists()
+    assert (output_dir / "sensitivity_summary.csv").exists()
+    assert (output_dir / "sensitivity_tornado.png").exists()
 
 
 def test_cli_without_input_preserves_the_demo_workflow(tmp_path: Path, capsys) -> None:

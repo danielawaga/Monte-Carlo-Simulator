@@ -1,13 +1,16 @@
 """Triangular distribution implementation."""
 
 from dataclasses import dataclass
+from typing import cast
 
 import numpy as np
+from scipy.stats import triang
 
 from monte_carlo_simulator.distributions.base import (
     BaseDistribution,
     _as_finite_float,
     _scaled_interval_position,
+    _validate_probabilities,
     _validated_sample_size,
 )
 from monte_carlo_simulator.exceptions import ValidationError
@@ -27,6 +30,14 @@ class TriangularDistribution(BaseDistribution):
             raise ValidationError(
                 "Triangular parameters must satisfy minimum <= most_likely <= maximum."
             )
+
+    def ppf(self, probabilities: object) -> np.ndarray:
+        probabilities = _validate_probabilities(probabilities)
+        if self.minimum == self.maximum:
+            return np.full(probabilities.shape, self.minimum, dtype=float)
+        mode_position = _scaled_interval_position(self.minimum, self.most_likely, self.maximum)
+        unit = triang.ppf(probabilities, c=mode_position)
+        return cast(np.ndarray, (1.0 - unit) * self.minimum + unit * self.maximum)
 
     def sample(self, rng: np.random.Generator, size: int) -> np.ndarray:
         size = _validated_sample_size(size)

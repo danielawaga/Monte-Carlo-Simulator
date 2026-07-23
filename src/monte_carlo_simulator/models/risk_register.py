@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
+from monte_carlo_simulator.models.correlation_matrix import CorrelationMatrix
 from monte_carlo_simulator.models.risk_item import RiskItem
 from monte_carlo_simulator.models.simulation_result import SimulationResult
 
@@ -30,6 +31,7 @@ class RiskRegister:
     items: list[RiskItem]
     source_path: Path | None = None
     source_rows: dict[str, int] = field(default_factory=dict)
+    correlation_matrix: CorrelationMatrix | None = None
 
 
 @dataclass(slots=True)
@@ -41,8 +43,15 @@ class ExcelSimulationRun:
     histogram_path: Path
     summary_path: Path
     source_path: Path
+    sensitivity_path: Path | None = None
+    tornado_path: Path | None = None
 
     @property
-    def artifact_paths(self) -> tuple[Path, Path]:
+    def artifact_paths(self) -> tuple[Path, ...]:
         """Return all generated artifact paths."""
-        return self.histogram_path, self.summary_path
+        paths = [self.histogram_path, self.summary_path]
+        if self.sensitivity_path is not None:
+            paths.append(self.sensitivity_path)
+        if self.tornado_path is not None:
+            paths.append(self.tornado_path)
+        return tuple(paths)

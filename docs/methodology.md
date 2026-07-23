@@ -127,6 +127,10 @@ estimation de départ. Elle n'entre pas dans l'équation d'agrégation et n'est 
 implicitement. Si la baseline doit faire partie du total, elle doit être représentée par un poste
 déterministe explicite. Cette décision évite une double comptabilisation silencieuse.
 
+## Corrélations
+
+Une feuille Excel `correlations` optionnelle définit une matrice par noms de postes actifs. Les lignes et colonnes peuvent être dans des ordres différents : elles sont validées séparément puis réordonnées avant la construction de `CorrelationMatrix`. La simulation corrélée utilise une copule gaussienne, une décomposition de Cholesky et les fonctions quantiles (`ppf`) des six distributions.
+
 ## Value at Risk
 
 Dans ce projet, la VaR au niveau de confiance `q` correspond au quantile `q` de la distribution
@@ -140,7 +144,27 @@ stabilisent. Le projet ne fournit pas encore de diagnostic automatique de conver
 
 ## Fonctionnalités hors périmètre actuel
 
-Les corrélations, la décomposition de Cholesky, l'analyse de sensibilité, le diagramme de tornade,
+l'analyse de sensibilité, le diagramme de tornade,
 la courbe en S, la convergence automatique, la comparaison de scénarios et les exports PDF ou
 PowerPoint ne sont pas implémentés. L'import Excel versionné, en revanche, est opérationnel via la
 CLI et le service applicatif.
+
+## Sensitivity methodology: Spearman rank correlation
+
+For each risk item, the V1 sensitivity analysis computes Spearman's rho between that item's
+simulated samples and the simulated total. Spearman is a rank-based monotonic association
+measure in `[-1, 1]`; unlike Pearson correlation, it does not assume a linear relationship
+or normal marginals, so it is appropriate for triangular, PERT, uniform, normal,
+log-normal and event distributions, including ties from Bernoulli-style events.
+
+Deterministic item columns are constant and therefore undefined for Spearman correlation.
+They are explicitly flagged as `constant_input` instead of being assigned zero. Defined
+items are ranked by `abs(rho)` with deterministic tie-breaking by the original item order.
+Positive rho means larger item samples tend to accompany larger totals; negative rho means
+larger item samples tend to accompany smaller totals; values close to zero indicate weak
+monotone association.
+
+With correlated inputs, Spearman coefficients remain descriptive associations with the
+total. They are not causal effects, not an additive variance decomposition, and their
+absolute values are not normalized to 100 %. Correlated items can share apparent importance,
+so the ranking should be used as a decision aid rather than proof of isolated causality.

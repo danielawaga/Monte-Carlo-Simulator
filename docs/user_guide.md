@@ -114,7 +114,7 @@ Excel row number, item name when available, field and rejected value. Common cau
 - incompatible units or no active rows;
 - a missing, corrupt or non-`.xlsx` input file.
 
-Fix every reported issue and run the command again. Programming exceptions are not converted into
+For correlated simulations, add a `correlations` sheet with active item names on both axes and finite coefficients in `[-1, 1]`; row and column order may differ. Fix every reported issue and run the command again. Programming exceptions are not converted into
 workbook validation messages.
 
 ## Confidentiality
@@ -128,5 +128,32 @@ authorization.
 
 The CLI and Python application service support the complete schema-v1 workflow. The Streamlit
 directory remains an informational skeleton; a complete Streamlit interface is not implemented.
-Correlations, Cholesky decomposition, PSD correction, sensitivity analysis, tornado charts,
+sensitivity analysis, tornado charts,
 automatic convergence, scenario comparison, and PDF/PowerPoint export remain outside this scope.
+
+## Reading the Spearman sensitivity outputs
+
+After an Excel run, open `sensitivity_summary.csv` to review item-level sensitivity. The CSV
+columns are:
+
+- `item_name`: risk item name from the workbook.
+- `spearman_rho`: Spearman rank correlation with the total, between -1 and 1 when defined.
+- `absolute_rho`: absolute coefficient used for ordering importance.
+- `rank`: 1 for the strongest defined association; blank for undefined items.
+- `direction`: `positive`, `negative`, `neutral` or `undefined`.
+- `is_defined`: whether the coefficient is interpretable.
+- `undefined_reason`: for example `constant_input` for deterministic columns.
+
+`sensitivity_tornado.png` visualizes the defined rows horizontally around zero. Bars to the
+right are positive associations and bars to the left are negative associations; the most
+important defined item appears at the top. Constant deterministic items are excluded from
+this chart by default but remain visible in the CSV.
+
+Use the tornado as a screening and prioritization aid. For correlated inputs, do not read
+the ranking as causality or as a percentage contribution to total variance.
+
+## Planned features
+
+Future work still includes convergence diagnostics, S-curves, Streamlit exploration and
+scenario comparison. Spearman sensitivity analysis and the tornado chart are now available
+in the Excel workflow.

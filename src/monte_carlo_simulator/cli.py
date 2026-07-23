@@ -58,6 +58,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"Analysis: {run.metadata.analysis_type} ({run.metadata.default_unit})",
                 f"Histogram saved to: {run.histogram_path}",
                 f"Summary saved to: {run.summary_path}",
+                f"Sensitivity saved to: {run.sensitivity_path}",
+                f"Tornado chart saved to: {run.tornado_path}",
             ]
     except MonteCarloError as exc:
         parser.error(str(exc))

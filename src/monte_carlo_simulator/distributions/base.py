@@ -20,6 +20,20 @@ def _as_finite_float(value: object, parameter_name: str) -> float:
     return numeric_value
 
 
+def _validate_probabilities(probabilities: object) -> np.ndarray:
+    """Validate probability inputs for inverse-CDF methods while preserving shape."""
+    array = np.asarray(probabilities)
+    if array.dtype == np.dtype(bool) or array.dtype.kind in {"b", "c", "O", "S", "U", "V"}:
+        raise ValidationError("Probabilities must be finite real numbers in [0, 1].")
+    try:
+        numeric = array.astype(float, copy=False)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError("Probabilities must be finite real numbers in [0, 1].") from exc
+    if not np.all(np.isfinite(numeric)) or not np.all((0.0 <= numeric) & (numeric <= 1.0)):
+        raise ValidationError("Probabilities must be finite real numbers in [0, 1].")
+    return numeric
+
+
 def _validated_sample_size(size: object) -> int:
     """Validate the one-dimensional sample size accepted by all distributions."""
     if isinstance(size, bool) or not isinstance(size, Integral) or size <= 0:

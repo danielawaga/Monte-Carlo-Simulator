@@ -22,6 +22,7 @@ This repository hosts an academic project to model uncertainty on project costs/
 - Case-insensitive distribution aliases and unique risk-item names after trimming.
 - Heterogeneous cost or duration simulations with one vectorized draw per item.
 - Versioned Excel risk-register schema `1.0`, documented template and aggregated validation errors.
+- Optional Gaussian-copula correlations from a `correlations` Excel sheet using a strictly positive-definite matrix and Cholesky sampling.
 - End-to-end Excel → `RiskItem` → simulation → CSV summary and histogram workflow.
 - Summary statistics: mean, median, standard deviation, minimum, maximum and configurable
   collision-safe percentile labels such as P50, P95.1 and P99.5.
@@ -60,9 +61,14 @@ value returned with the results; it is deliberately **not** added to the simulat
 
 See [the user guide](docs/user_guide.md) for the complete schema and validation rules.
 
+### Correlations
+
+Add an optional `correlations` sheet to simulate dependencies between active items. The first row contains column item names, the first column contains row item names, and coefficients are aligned by name before validation. The matrix must cover exactly the active items, be square, symmetric, finite, bounded in `[-1, 1]`, have a unit diagonal and be strictly positive definite.
+
+Generate the synthetic public workbook with `python scripts/generate_correlated_cost_register.py`; it writes `data/examples/correlated_cost_register.xlsx`, which remains ignored like other `.xlsx` files.
+
 ## 4. Planned features
 
-- Correlations with Cholesky decomposition.
 - Tornado chart, S-curve and convergence diagnostics.
 - Interactive Streamlit workflow.
 - Scenario comparison and automated decision-ready exports.
@@ -138,3 +144,25 @@ streamlit_app/
 - Do not add confidential project, personal or client data.
 - `.xlsx` and `.xls` files remain ignored globally; only the public fictitious template is
   explicitly allowed by `.gitignore`.
+
+## Analyse de sensibilité Spearman et tornado
+
+Le workflow Excel produit désormais quatre artefacts dans le dossier de sortie :
+`simulation_summary.csv`, `simulation_histogram.png`, `sensitivity_summary.csv` et
+`sensitivity_tornado.png`. Le tableau `sensitivity_summary.csv` contient les colonnes
+`item_name`, `spearman_rho`, `absolute_rho`, `rank`, `direction`, `is_defined` et
+`undefined_reason`.
+
+La sensibilité V1 utilise la corrélation de rang de Spearman entre les tirages de chaque
+poste (`SimulationResult.item_samples`) et le total simulé. Spearman mesure une association
+monotone par rangs : il est plus robuste que Pearson pour les distributions non normales,
+asymétriques ou événementielles avec de nombreux ex æquo. Les postes déterministes ont une
+corrélation mathématiquement indéfinie ; ils sont exportés avec `spearman_rho = NaN`,
+`absolute_rho = NaN`, sans rang, `direction = undefined`, `is_defined = False` et
+`undefined_reason = constant_input`, puis exclus par défaut du tornado.
+
+Le signe indique le sens de l'association monotone (`positive`, `negative` ou `neutral`) et
+la valeur absolue sert uniquement au classement. Lorsque des entrées sont corrélées, ces
+coefficients ne sont pas causaux, ne décomposent pas additivement la variance et ne doivent
+pas être normalisés pour sommer à 100 %. Plusieurs postes corrélés peuvent partager ou
+transférer une partie de leur importance apparente.
