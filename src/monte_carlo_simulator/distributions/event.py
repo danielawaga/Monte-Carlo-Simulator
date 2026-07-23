@@ -7,6 +7,7 @@ import numpy as np
 from monte_carlo_simulator.distributions.base import (
     BaseDistribution,
     _as_finite_float,
+    _validate_probabilities,
     _validated_sample_size,
 )
 from monte_carlo_simulator.exceptions import ValidationError
@@ -24,6 +25,15 @@ class EventDistribution(BaseDistribution):
         self.impact = _as_finite_float(self.impact, "impact")
         if not 0 <= self.probability <= 1:
             raise ValidationError("Event probability must be in the interval [0, 1].")
+
+    def ppf(self, probabilities: object) -> np.ndarray:
+        probabilities = _validate_probabilities(probabilities)
+        if self.probability == 0 or self.impact == 0:
+            return np.zeros(probabilities.shape, dtype=float)
+        if self.probability == 1:
+            return np.full(probabilities.shape, self.impact, dtype=float)
+        threshold = 1.0 - self.probability
+        return np.where(probabilities <= threshold, 0.0, self.impact)
 
     def sample(self, rng: np.random.Generator, size: int) -> np.ndarray:
         size = _validated_sample_size(size)

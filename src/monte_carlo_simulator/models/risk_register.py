@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
+from monte_carlo_simulator.models.correlation_matrix import CorrelationMatrix
 from monte_carlo_simulator.models.risk_item import RiskItem
 from monte_carlo_simulator.models.simulation_result import SimulationResult
 
@@ -30,6 +31,7 @@ class RiskRegister:
     items: list[RiskItem]
     source_path: Path | None = None
     source_rows: dict[str, int] = field(default_factory=dict)
+    correlation_matrix: CorrelationMatrix | None = None
 
 
 @dataclass(slots=True)

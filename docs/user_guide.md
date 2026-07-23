@@ -114,7 +114,7 @@ Excel row number, item name when available, field and rejected value. Common cau
 - incompatible units or no active rows;
 - a missing, corrupt or non-`.xlsx` input file.
 
-Fix every reported issue and run the command again. Programming exceptions are not converted into
+For correlated simulations, add a `correlations` sheet with active item names on both axes and finite coefficients in `[-1, 1]`; row and column order may differ. Fix every reported issue and run the command again. Programming exceptions are not converted into
 workbook validation messages.
 
 ## Confidentiality
@@ -128,5 +128,5 @@ authorization.
 
 The CLI and Python application service support the complete schema-v1 workflow. The Streamlit
 directory remains an informational skeleton; a complete Streamlit interface is not implemented.
-Correlations, Cholesky decomposition, PSD correction, sensitivity analysis, tornado charts,
+sensitivity analysis, tornado charts,
 automatic convergence, scenario comparison, and PDF/PowerPoint export remain outside this scope.

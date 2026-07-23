@@ -1,3 +1,4 @@
+import os
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
@@ -6,6 +7,8 @@ from openpyxl import Workbook
 
 from monte_carlo_simulator.io.schema import METADATA_KEYS, RISK_REGISTER_COLUMNS
 from monte_carlo_simulator.models import RiskItem, SimulationConfig
+
+os.environ.setdefault("PYTHONPATH", "src")
 
 ExcelWorkbookFactory = Callable[..., Path]
 

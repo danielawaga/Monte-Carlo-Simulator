@@ -88,7 +88,11 @@ def run_simulation_from_excel(
     """Validate an Excel risk register, simulate it and persist its artifacts."""
     register = load_risk_register(file_path)
     simulation_config = config or SimulationConfig()
-    result = MonteCarloSimulator().run(register.items, simulation_config)
+    result = MonteCarloSimulator().run(
+        register.items,
+        simulation_config,
+        correlation_matrix=register.correlation_matrix,
+    )
 
     target_dir = Path(output_dir) if output_dir is not None else OUTPUT_DIR
     histogram_path = target_dir / "simulation_histogram.png"

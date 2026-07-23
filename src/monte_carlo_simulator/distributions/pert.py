@@ -1,13 +1,16 @@
 """Beta-PERT distribution implementation."""
 
 from dataclasses import dataclass
+from typing import cast
 
 import numpy as np
+from scipy.stats import beta
 
 from monte_carlo_simulator.distributions.base import (
     BaseDistribution,
     _as_finite_float,
     _scaled_interval_position,
+    _validate_probabilities,
     _validated_sample_size,
 )
 from monte_carlo_simulator.exceptions import ValidationError
@@ -31,6 +34,14 @@ class PertDistribution(BaseDistribution):
             raise ValidationError("PERT parameters must satisfy minimum <= most_likely <= maximum.")
         if self.lambda_shape <= 0:
             raise ValidationError("PERT lambda_shape must be strictly positive.")
+
+    def ppf(self, probabilities: object) -> np.ndarray:
+        probabilities = _validate_probabilities(probabilities)
+        if self.minimum == self.maximum:
+            return np.full(probabilities.shape, self.minimum, dtype=float)
+        alpha, beta_shape = self._shape_parameters()
+        unit = beta.ppf(probabilities, alpha, beta_shape)
+        return cast(np.ndarray, (1.0 - unit) * self.minimum + unit * self.maximum)
 
     def sample(self, rng: np.random.Generator, size: int) -> np.ndarray:
         size = _validated_sample_size(size)

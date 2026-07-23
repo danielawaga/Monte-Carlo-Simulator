@@ -22,6 +22,7 @@ This repository hosts an academic project to model uncertainty on project costs/
 - Case-insensitive distribution aliases and unique risk-item names after trimming.
 - Heterogeneous cost or duration simulations with one vectorized draw per item.
 - Versioned Excel risk-register schema `1.0`, documented template and aggregated validation errors.
+- Optional Gaussian-copula correlations from a `correlations` Excel sheet using a strictly positive-definite matrix and Cholesky sampling.
 - End-to-end Excel → `RiskItem` → simulation → CSV summary and histogram workflow.
 - Summary statistics: mean, median, standard deviation, minimum, maximum and configurable
   collision-safe percentile labels such as P50, P95.1 and P99.5.
@@ -60,9 +61,14 @@ value returned with the results; it is deliberately **not** added to the simulat
 
 See [the user guide](docs/user_guide.md) for the complete schema and validation rules.
 
+### Correlations
+
+Add an optional `correlations` sheet to simulate dependencies between active items. The first row contains column item names, the first column contains row item names, and coefficients are aligned by name before validation. The matrix must cover exactly the active items, be square, symmetric, finite, bounded in `[-1, 1]`, have a unit diagonal and be strictly positive definite.
+
+Generate the synthetic public workbook with `python scripts/generate_correlated_cost_register.py`; it writes `data/examples/correlated_cost_register.xlsx`, which remains ignored like other `.xlsx` files.
+
 ## 4. Planned features
 
-- Correlations with Cholesky decomposition.
 - Tornado chart, S-curve and convergence diagnostics.
 - Interactive Streamlit workflow.
 - Scenario comparison and automated decision-ready exports.
