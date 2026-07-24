@@ -45,6 +45,7 @@ class ExcelSimulationRun:
     source_path: Path
     sensitivity_path: Path | None = None
     tornado_path: Path | None = None
+    baseline_comparison_path: Path | None = None
 
     @property
     def artifact_paths(self) -> tuple[Path, ...]:
@@ -54,4 +55,6 @@ class ExcelSimulationRun:
             paths.append(self.sensitivity_path)
         if self.tornado_path is not None:
             paths.append(self.tornado_path)
+        if self.baseline_comparison_path is not None:
+            paths.append(self.baseline_comparison_path)
         return tuple(paths)

@@ -15,3 +15,9 @@ def export_sensitivity_to_csv(sensitivity: pd.DataFrame, output_path: Path) -> N
     """Export Spearman sensitivity analysis to CSV."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     sensitivity.to_csv(output_path, index=False)
+
+
+def export_baseline_comparison_to_csv(comparison: pd.DataFrame, output_path: Path) -> None:
+    """Export baseline comparison indicators to CSV."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    comparison.to_csv(output_path, index=False)

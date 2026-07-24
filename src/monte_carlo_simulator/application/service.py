@@ -2,11 +2,16 @@
 
 from pathlib import Path
 
-from monte_carlo_simulator.analysis import build_tornado_data, compute_spearman_sensitivity
+from monte_carlo_simulator.analysis import (
+    build_tornado_data,
+    compute_baseline_comparison,
+    compute_spearman_sensitivity,
+)
 from monte_carlo_simulator.config import OUTPUT_DIR
 from monte_carlo_simulator.engine import MonteCarloSimulator
 from monte_carlo_simulator.exceptions import ValidationError
 from monte_carlo_simulator.io import (
+    export_baseline_comparison_to_csv,
     export_sensitivity_to_csv,
     export_summary_to_csv,
     load_risk_register,
@@ -106,6 +111,10 @@ def run_simulation_from_excel(
     summary_path = target_dir / "simulation_summary.csv"
     sensitivity_path = target_dir / "sensitivity_summary.csv"
     tornado_path = target_dir / "sensitivity_tornado.png"
+    baseline = register.metadata.baseline_estimate
+    baseline_comparison_path = (
+        target_dir / "baseline_comparison.csv" if baseline is not None else None
+    )
     analysis_label = register.metadata.analysis_type.capitalize()
     save_histogram(
         result.samples,
@@ -121,6 +130,9 @@ def run_simulation_from_excel(
     export_sensitivity_to_csv(sensitivity, sensitivity_path)
     tornado_data = build_tornado_data(sensitivity)
     build_tornado_chart(tornado_data, tornado_path)
+    if baseline is not None and baseline_comparison_path is not None:
+        comparison = compute_baseline_comparison(result.samples, baseline)
+        export_baseline_comparison_to_csv(comparison, baseline_comparison_path)
 
     source_path = register.source_path or Path(file_path).resolve()
     return ExcelSimulationRun(
@@ -131,4 +143,5 @@ def run_simulation_from_excel(
         source_path=source_path,
         sensitivity_path=sensitivity_path,
         tornado_path=tornado_path,
+        baseline_comparison_path=baseline_comparison_path,
     )

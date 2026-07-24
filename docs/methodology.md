@@ -127,6 +127,12 @@ estimation de départ. Elle n'entre pas dans l'équation d'agrégation et n'est 
 implicitement. Si la baseline doit faire partie du total, elle doit être représentée par un poste
 déterministe explicite. Cette décision évite une double comptabilisation silencieuse.
 
+Lorsqu'elle est fournie, le rapport de comparaison calcule la probabilité empirique stricte
+`P(total > baseline)`. Une valeur égale à la baseline n'est donc pas un dépassement. Les écarts
+aux P50, P80 et P90 valent `percentile - baseline`, et les réserves correspondantes sont planchées
+à zéro avec `max(écart, 0)`. Les écarts relatifs ne sont définis que pour une baseline strictement
+positive ; ils sont exportés comme valeurs manquantes pour une baseline nulle ou négative.
+
 ## Corrélations
 
 Une feuille Excel `correlations` optionnelle définit une matrice par noms de postes actifs. Les lignes et colonnes peuvent être dans des ordres différents : elles sont validées séparément puis réordonnées avant la construction de `CorrelationMatrix`. La simulation corrélée utilise une copule gaussienne, une décomposition de Cholesky et les fonctions quantiles (`ppf`) des six distributions.
@@ -144,10 +150,9 @@ stabilisent. Le projet ne fournit pas encore de diagnostic automatique de conver
 
 ## Fonctionnalités hors périmètre actuel
 
-l'analyse de sensibilité, le diagramme de tornade,
-la courbe en S, la convergence automatique, la comparaison de scénarios et les exports PDF ou
-PowerPoint ne sont pas implémentés. L'import Excel versionné, en revanche, est opérationnel via la
-CLI et le service applicatif.
+La courbe en S, la convergence automatique, la comparaison de scénarios et les exports PDF ou
+PowerPoint ne sont pas implémentés. L'import Excel versionné, la comparaison à la baseline,
+l'analyse de sensibilité et le diagramme de tornade sont opérationnels via le workflow Excel.
 
 ## Sensitivity methodology: Spearman rank correlation
 
