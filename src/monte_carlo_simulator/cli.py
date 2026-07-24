@@ -61,6 +61,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"Sensitivity saved to: {run.sensitivity_path}",
                 f"Tornado chart saved to: {run.tornado_path}",
             ]
+            if run.baseline_comparison_path is not None:
+                artifact_lines.append(
+                    f"Baseline comparison saved to: {run.baseline_comparison_path}"
+                )
     except MonteCarloError as exc:
         parser.error(str(exc))
 

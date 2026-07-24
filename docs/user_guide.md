@@ -157,3 +157,12 @@ the ranking as causality or as a percentage contribution to total variance.
 Future work still includes convergence diagnostics, S-curves, Streamlit exploration and
 scenario comparison. Spearman sensitivity analysis and the tornado chart are now available
 in the Excel workflow.
+
+## Baseline comparison report
+
+When `baseline_estimate` is present, the Excel workflow creates
+`baseline_comparison.csv`. It contains the baseline, simulated mean, P50, P80 and P90, the
+strict exceedance probability, absolute and relative percentile gaps, and non-negative
+percentile reserves. Equality with the baseline is not an exceedance. Relative gaps are left
+undefined for zero or negative baselines. If the metadata value is absent, this optional
+artifact is not created.

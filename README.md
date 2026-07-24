@@ -27,6 +27,7 @@ This repository hosts an academic project to model uncertainty on project costs/
 - Summary statistics: mean, median, standard deviation, minimum, maximum and configurable
   collision-safe percentile labels such as P50, P95.1 and P99.5.
 - Histogram export with percentile markers.
+- Baseline comparison report with exceedance probability, percentile gaps and P80/P90 reserves.
 - CLI for both Excel inputs and the built-in demonstration; initial Streamlit skeleton.
 
 ### Distribution inputs
@@ -105,7 +106,10 @@ python -m monte_carlo_simulator.cli \
   --output-dir data/output
 ```
 
-The command writes `simulation_summary.csv` and `simulation_histogram.png`. Without `--input`,
+When the workbook supplies `baseline_estimate`, the command also writes
+`baseline_comparison.csv`. It compares the simulated mean and P50/P80/P90 with the reference,
+reports the strict probability `P(total > baseline)`, and gives non-negative P80/P90 reserves.
+The baseline remains contextual and is never added to simulated totals. Without `--input`,
 the historical fictitious demonstration remains available:
 
 ```bash
