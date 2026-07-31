@@ -58,6 +58,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"Analysis: {run.metadata.analysis_type} ({run.metadata.default_unit})",
                 f"Histogram saved to: {run.histogram_path}",
                 f"Summary saved to: {run.summary_path}",
+                f"S-curve saved to: {run.s_curve_path}",
+                f"Percentile table saved to: {run.percentile_table_path}",
+                f"Convergence diagnostics saved to: {run.convergence_path}",
                 f"Sensitivity saved to: {run.sensitivity_path}",
                 f"Tornado chart saved to: {run.tornado_path}",
             ]
