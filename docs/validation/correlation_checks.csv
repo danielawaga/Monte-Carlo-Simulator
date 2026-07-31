@@ -1,0 +1,5 @@
+first,second,target,observed_spearman,absolute_error
+Terrassement,Fondations et gros œuvre,0.3,0.2874988881631435,0.012501111836856482
+Fondations et gros œuvre,Hausse exceptionnelle des matériaux,0.5,0.34216903702881035,0.15783096297118965
+Électricité,Plomberie et sanitaires,0.25,0.23914931652952026,0.010850683470479738
+Supervision du chantier,Retard administratif ou de raccordement,0.4,0.2692485085172306,0.13075149148276943
