@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Create variant 2 of the synthetic building register with moderate correlations."""
 
 from pathlib import Path
@@ -7,7 +8,6 @@ from openpyxl import load_workbook
 from openpyxl.comments import Comment
 from openpyxl.formatting.rule import ColorScaleRule
 from openpyxl.styles import Alignment, Font, PatternFill
-
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "output" / "registre_risques_batiment_synthetique.xlsx"
@@ -84,7 +84,9 @@ def main() -> None:
     for cell in sheet[1]:
         cell.fill = HEADER_FILL
         cell.font = HEADER_FONT
-        cell.alignment = Alignment(text_rotation=90, horizontal="center", vertical="bottom", wrap_text=True)
+        cell.alignment = Alignment(
+            text_rotation=90, horizontal="center", vertical="bottom", wrap_text=True
+        )
     sheet["A1"].alignment = Alignment(horizontal="center", vertical="center")
 
     for row in range(2, len(names) + 2):

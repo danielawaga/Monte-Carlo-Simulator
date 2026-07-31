@@ -1,11 +1,10 @@
+# ruff: noqa: E501
 """Create variant 3 of the synthetic building register with targeted stress."""
 
-from copy import copy
 from pathlib import Path
 
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
-
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "output" / "registre_risques_batiment_correlations.xlsx"
@@ -102,11 +101,17 @@ def main() -> None:
         sheet.row_dimensions[row].height = 32
         for cell in sheet[row]:
             cell.alignment = Alignment(vertical="top", wrap_text=True)
-        sheet.cell(row, 3).number_format = "0.00%" if sheet.cell(row, 2).value == "probability" else "#,##0"
-        sheet.cell(row, 4).number_format = "0.00%" if sheet.cell(row, 2).value == "probability" else "#,##0"
+        sheet.cell(row, 3).number_format = (
+            "0.00%" if sheet.cell(row, 2).value == "probability" else "#,##0"
+        )
+        sheet.cell(row, 4).number_format = (
+            "0.00%" if sheet.cell(row, 2).value == "probability" else "#,##0"
+        )
 
     workbook.properties.title = "Registre de risques — bâtiment administratif stressé"
-    workbook.properties.description = "Variante 3 avec corrélations conservées et stress ciblé documenté."
+    workbook.properties.description = (
+        "Variante 3 avec corrélations conservées et stress ciblé documenté."
+    )
     workbook.save(OUTPUT)
     workbook.close()
     print(OUTPUT)
