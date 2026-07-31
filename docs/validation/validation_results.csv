@@ -1,0 +1,45 @@
+family,test,status,observed,criterion
+Distributions,triangular: bornes,PASS,"[10.0326, 39.9389]","Tous les tirages dans [10, 40]"
+Distributions,pert: bornes,PASS,"[10.0667, 39.3530]","Tous les tirages dans [10, 40]"
+Distributions,uniform: bornes,PASS,"[10.0003, 40.0000]","Tous les tirages dans [10, 40]"
+Distributions,uniform: moyenne,PASS,24.9931,"|moyenne - 25| < 0,10"
+Distributions,uniform: quartiles,PASS,"[17.5166, 24.979, 32.4871]","Erreur maximale des quartiles < 0,12"
+Distributions,normal: moyenne,PASS,99.9931,"|moyenne - 100| < 0,15"
+Distributions,normal: écart-type,PASS,15.0000,"|écart-type - 15| < 0,15"
+Distributions,lognormal: positivité,PASS,minimum=41.2172,Tous les tirages strictement positifs
+Distributions,lognormal: moments,PASS,moyenne=100.0874; écart-type=19.9992,"Erreurs absolues < 0,25"
+Distributions,lognormal: asymétrie,PASS,proxy=0.0981,"(moyenne - médiane) / écart-type > 0,08"
+Distributions,event: valeurs possibles,PASS,"[0.0, 500.0]","Valeurs exactement {0, impact}"
+Distributions,event: fréquence,PASS,0.23011,"|fréquence - 0,23| < 0,003"
+Reproductibilité,tirages identiques,PASS,totaux=True; postes=True,Égalité bit à bit avec même graine
+Reproductibilité,CSV identiques,PASS,"{'simulation_summary.csv': 'f01e924d6b690b6735f49211b5a5a19cc2ea90182d4e884c7a551380f9dcc694', 'sensitivity_summary.csv': '9853228767aeb948915c414365bee225ff9f4ca9a2705f65e08184be036c75b1', 'baseline_comparison.csv': 'b013fd239dc76d4b77eb8156b32a1b4919bbeae1766188a0eafce48fdef81b15'}",SHA-256 identiques pour les trois CSV
+Reproductibilité,autre graine: tirages différents,PASS,True,Les tableaux de tirages diffèrent
+Reproductibilité,autre graine: stabilité statistique,PASS,écart moyen=0.17994%; écart P90=0.25186%,"Écart moyen < 0,3 % et écart P90 < 0,5 %"
+Corrélations,Terrassement / Fondations et gros œuvre,PASS,cible latente=0.30; Spearman observé=0.2875,"Même signe et écart absolu < 0,05"
+Corrélations,Fondations et gros œuvre / Hausse exceptionnelle des matériaux,PASS,cible latente=0.50; Spearman observé=0.3422,"Événement discret : 0,20 < Spearman observé < corrélation latente"
+Corrélations,Électricité / Plomberie et sanitaires,PASS,cible latente=0.25; Spearman observé=0.2391,"Même signe et écart absolu < 0,05"
+Corrélations,Supervision du chantier / Retard administratif ou de raccordement,PASS,cible latente=0.40; Spearman observé=0.2692,"Événement discret : 0,20 < Spearman observé < corrélation latente"
+Corrélations,absence imposée: Études et contrôles / Climatisation et ventilation,PASS,Spearman=0.0018,"|Spearman| < 0,015"
+Corrélations,absence imposée: Façades et menuiseries / Aménagements extérieurs,PASS,Spearman=0.0015,"|Spearman| < 0,015"
+Corrélations,absence imposée: Modification tardive du programme / Négociation commerciale favorable,PASS,Spearman=-0.0027,"|Spearman| < 0,015"
+Variantes,V2: moyenne stable,PASS,V1=7928325; V2=7930657,"Écart relatif < 0,1 %"
+Variantes,V2: dispersion accrue,PASS,std +9.9%; P90 +69012,Écart-type et P90 supérieurs
+Variantes,V3: déplacement défavorable,PASS,"{'mean': 557945.6535500856, 'median': 548228.7258721143, 'std': 167909.21072654222, 'P80': 716820.0431730486, 'P90': 782092.406163916}","Moyenne, médiane, écart-type, P80 et P90 supérieurs"
+Variantes,V3: baseline davantage dépassée,PASS,V2=63.88%; V3=90.86%,Probabilité V3 > probabilité V2
+Erreurs Excel,minimum_superieur_maximum,PASS,"Risk register validation failed (3 issue(s)): | - [sheet='risk_register', row=4, item='Terrassement', field='most_likely', value=400000.0] most_likely must be greater than or equal to minimum. | - [sheet='correlations', ",Fichier rejeté avec contexte utilisateur
+Erreurs Excel,probabilite_superieure_1,PASS,"Risk register validation failed (3 issue(s)): | - [sheet='risk_register', row=14, item='Sol plus difficile que prévu', field='probability', value=1.2] probability must be in the interval [0, 1]. | - [sheet='correlations'",Fichier rejeté avec contexte utilisateur
+Erreurs Excel,distribution_inconnue,PASS,"Risk register validation failed (3 issue(s)): | - [sheet='risk_register', row=2, item='Études et contrôles', field='distribution', value='mystery'] Unsupported distribution 'mystery'. | - [sheet='correlations', row=1, fi",Fichier rejeté avec contexte utilisateur
+Erreurs Excel,parametre_obligatoire_manquant,PASS,"Risk register validation failed (3 issue(s)): | - [sheet='risk_register', row=4, item='Terrassement', field='maximum', value=nan] Parameter is required for distribution 'pert'. | - [sheet='correlations', row=1, field='D1",Fichier rejeté avec contexte utilisateur
+Erreurs Excel,matrice_non_symetrique,PASS,"Risk register validation failed (1 issue(s)): | - [sheet='correlations', field='matrix', value=[[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.2, 0.0, 0.0, 0",Fichier rejeté avec contexte utilisateur
+Erreurs Excel,diagonale_differente_1,PASS,"Risk register validation failed (1 issue(s)): | - [sheet='correlations', field='matrix', value=[[0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0",Fichier rejeté avec contexte utilisateur
+Erreurs Excel,nom_poste_duplique,PASS,"Risk register validation failed (3 issue(s)): | - [sheet='risk_register', row=3, item='Études et contrôles', field='name', value='Études et contrôles'] Duplicate item name; first occurrence is on row 2. | - [sheet='corre",Fichier rejeté avec contexte utilisateur
+Erreurs Excel,unites_incompatibles,PASS,"Risk register validation failed (3 issue(s)): | - [sheet='risk_register', row=2, item='Études et contrôles', field='unit', value='EUR'] Unit is incompatible with the register unit 'MAD'. | - [sheet='correlations', row=1,",Fichier rejeté avec contexte utilisateur
+Erreurs Excel,matrice_non_definie_positive,PASS,"Risk register validation failed (1 issue(s)): | - [sheet='correlations', field='matrix', value=[[1.0, 0.9, 0.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [0.9, 1.0, -0.9, 0.0, 0.0, 0.0, ",Fichier rejeté avec contexte utilisateur
+Sorties,résumé recalculé,PASS,"{'mean': 7930657.375840197, 'median': 7887997.500160325, 'std': 412004.7284491446, 'minimum': 6828185.672388271, 'maximum': 9785469.707012942, 'P50': 7887997.500160325, 'P80': 8275998.366789157, 'P90': 8500277.962279657}",Égalité numérique à 1e-9
+Sorties,baseline recalculée,PASS,fréquence=0.638800; CSV=0.638800,Fréquence stricte et quantiles identiques
+Sorties,sensibilité Spearman recalculée,PASS,coefficients=True; classement=True,"Coefficients identiques, |rho| décroissant et rangs consécutifs"
+Sorties,total sans double comptage,PASS,écart max=0.000e+00,Somme des contributions = total simulé
+Sorties,table de decision recalculee,PASS,"[{'percentile': 'P50', 'amount': 7887997.500160325, 'recommended_reserve': 137997.50016032532}, {'percentile': 'P80', 'amount': 8275998.366789157, 'recommended_reserve': 525998.3667891566}, {'percentile': 'P90', 'amount': 8500277.962279657, 'recommended_reserve': 750277.9622796569}]","Percentiles, depassement et reserve recalcules independamment"
+Sorties,convergence recalculee,PASS,blocs=10; dernier=10000; stops=1,"Comptages croissants, P90 cumule identique et au plus un arret recommande"
+Sorties,courbe S coherente,PASS,points=10000; probabilite finale=1.000000,"Totaux tries, probabilites strictement croissantes jusqu'a 1 et image non vide"
+Sorties,jeu complet de livrables,PASS,"['simulation_histogram.png', 'simulation_summary.csv', 'simulation_s_curve.png', 'percentile_decision_table.csv', 'convergence_diagnostics.csv', 'sensitivity_summary.csv', 'sensitivity_tornado.png', 'baseline_comparison.csv']","Huit livrables attendus, presents et non vides"
