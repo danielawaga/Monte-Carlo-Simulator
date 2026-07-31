@@ -3,8 +3,10 @@
 from pathlib import Path
 
 from monte_carlo_simulator.analysis import (
+    build_percentile_decision_table,
     build_tornado_data,
     compute_baseline_comparison,
+    compute_convergence_diagnostics,
     compute_spearman_sensitivity,
 )
 from monte_carlo_simulator.config import OUTPUT_DIR
@@ -12,6 +14,8 @@ from monte_carlo_simulator.engine import MonteCarloSimulator
 from monte_carlo_simulator.exceptions import ValidationError
 from monte_carlo_simulator.io import (
     export_baseline_comparison_to_csv,
+    export_convergence_to_csv,
+    export_percentile_table_to_csv,
     export_sensitivity_to_csv,
     export_summary_to_csv,
     load_risk_register,
@@ -23,6 +27,7 @@ from monte_carlo_simulator.models import (
     SimulationResult,
 )
 from monte_carlo_simulator.visualization.histogram import save_histogram
+from monte_carlo_simulator.visualization.s_curve import save_s_curve
 from monte_carlo_simulator.visualization.tornado import build_tornado_chart
 
 
@@ -109,6 +114,9 @@ def run_simulation_from_excel(
     target_dir = Path(output_dir) if output_dir is not None else OUTPUT_DIR
     histogram_path = target_dir / "simulation_histogram.png"
     summary_path = target_dir / "simulation_summary.csv"
+    s_curve_path = target_dir / "simulation_s_curve.png"
+    percentile_table_path = target_dir / "percentile_decision_table.csv"
+    convergence_path = target_dir / "convergence_diagnostics.csv"
     sensitivity_path = target_dir / "sensitivity_summary.csv"
     tornado_path = target_dir / "sensitivity_tornado.png"
     baseline = register.metadata.baseline_estimate
@@ -116,14 +124,39 @@ def run_simulation_from_excel(
         target_dir / "baseline_comparison.csv" if baseline is not None else None
     )
     analysis_label = register.metadata.analysis_type.capitalize()
+    x_label = f"Total {register.metadata.analysis_type} ({register.metadata.default_unit})"
     save_histogram(
         result.samples,
         result.summary,
         histogram_path,
         title=f"Monte Carlo Total {analysis_label} Distribution",
-        x_label=f"Total {register.metadata.analysis_type} ({register.metadata.default_unit})",
+        x_label=x_label,
+    )
+    save_s_curve(
+        result.samples,
+        result.summary,
+        s_curve_path,
+        title=f"Monte Carlo Total {analysis_label} S-curve",
+        x_label=x_label,
     )
     export_summary_to_csv(result.summary, summary_path)
+
+    percentile_table = build_percentile_decision_table(
+        result.samples,
+        simulation_config.confidence_levels,
+        baseline_estimate=baseline,
+        unit=register.metadata.default_unit,
+    )
+    export_percentile_table_to_csv(percentile_table, percentile_table_path)
+
+    block_size = max(1, min(1_000, simulation_config.number_of_simulations // 10))
+    convergence = compute_convergence_diagnostics(
+        result.samples,
+        confidence_level=max(simulation_config.confidence_levels),
+        block_size=block_size,
+    )
+    export_convergence_to_csv(convergence, convergence_path)
+
     if result.item_samples is None:
         raise ValidationError("Sensitivity analysis requires SimulationResult.item_samples.")
     sensitivity = compute_spearman_sensitivity(result.item_samples, result.samples)
@@ -144,4 +177,7 @@ def run_simulation_from_excel(
         sensitivity_path=sensitivity_path,
         tornado_path=tornado_path,
         baseline_comparison_path=baseline_comparison_path,
+        s_curve_path=s_curve_path,
+        percentile_table_path=percentile_table_path,
+        convergence_path=convergence_path,
     )
