@@ -37,6 +37,9 @@ def test_end_to_end_excel_simulation_creates_artifacts(tmp_path: Path) -> None:
     assert {"P50", "P95.1", "P99.5"} <= set(run.result.summary.columns)
     assert run.histogram_path.exists()
     assert run.summary_path.exists()
+    assert run.s_curve_path is not None and run.s_curve_path.exists()
+    assert run.percentile_table_path is not None and run.percentile_table_path.exists()
+    assert run.convergence_path is not None and run.convergence_path.exists()
     assert run.sensitivity_path is not None and run.sensitivity_path.exists()
     assert run.tornado_path is not None and run.tornado_path.exists()
     assert run.baseline_comparison_path is not None
@@ -44,6 +47,9 @@ def test_end_to_end_excel_simulation_creates_artifacts(tmp_path: Path) -> None:
     assert run.artifact_paths == (
         run.histogram_path,
         run.summary_path,
+        run.s_curve_path,
+        run.percentile_table_path,
+        run.convergence_path,
         run.sensitivity_path,
         run.tornado_path,
         run.baseline_comparison_path,
@@ -53,6 +59,13 @@ def test_end_to_end_excel_simulation_creates_artifacts(tmp_path: Path) -> None:
     assert saved_comparison.loc[0, "exceedance_probability"] == pytest.approx(
         np.mean(run.result.samples > 250_000)
     )
+    saved_percentiles = pd.read_csv(run.percentile_table_path)
+    assert saved_percentiles["percentile"].tolist() == ["P50", "P95.1", "P99.5"]
+    assert saved_percentiles["unit"].eq("EUR").all()
+    saved_convergence = pd.read_csv(run.convergence_path)
+    assert saved_convergence.iloc[-1]["draw_count"] == 750
+    assert saved_convergence["target_percentile"].eq("P99.5").all()
+    assert saved_convergence["stop_recommended"].sum() <= 1
     saved_sensitivity = pd.read_csv(run.sensitivity_path)
     assert list(saved_sensitivity.columns) == [
         "item_name",
@@ -92,6 +105,9 @@ def test_excel_simulation_without_baseline_skips_comparison_artifact(
     )
 
     assert run.baseline_comparison_path is None
+    assert run.percentile_table_path is not None
+    saved_percentiles = pd.read_csv(run.percentile_table_path)
+    assert saved_percentiles["baseline"].isna().all()
     assert not (tmp_path / "output" / "baseline_comparison.csv").exists()
 
 
@@ -121,11 +137,17 @@ def test_cli_runs_from_excel_input(tmp_path: Path) -> None:
     assert completed.returncode == 0, completed.stderr
     assert "Monte Carlo simulation completed." in completed.stdout
     assert "Fictitious Infrastructure Project" in completed.stdout
+    assert "S-curve saved to:" in completed.stdout
+    assert "Percentile table saved to:" in completed.stdout
+    assert "Convergence diagnostics saved to:" in completed.stdout
     assert "Sensitivity saved to:" in completed.stdout
     assert "Tornado chart saved to:" in completed.stdout
     assert "Baseline comparison saved to:" in completed.stdout
     assert (output_dir / "simulation_histogram.png").exists()
     assert (output_dir / "simulation_summary.csv").exists()
+    assert (output_dir / "simulation_s_curve.png").exists()
+    assert (output_dir / "percentile_decision_table.csv").exists()
+    assert (output_dir / "convergence_diagnostics.csv").exists()
     assert (output_dir / "sensitivity_summary.csv").exists()
     assert (output_dir / "sensitivity_tornado.png").exists()
     assert (output_dir / "baseline_comparison.csv").exists()
