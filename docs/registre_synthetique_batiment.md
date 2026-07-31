@@ -181,22 +181,24 @@ La loi événementielle représente les menaces et opportunités discrètes. Ell
 la probabilité d'occurrence de l'impact financier et permet d'éviter de surcharger les maxima
 des postes continus.
 
-## 9. Corrélations envisagées ultérieurement
+## 9. Corrélations de la variante 2
 
-La première version doit être validée sans feuille `correlations`. Une seconde variante pourra
-introduire un nombre limité de relations explicables, par exemple :
+La variante 1 reste la référence sans corrélation. La variante 2, désormais développée et validée,
+conserve les mêmes dix-huit postes, distributions marginales, baseline, nombre de tirages et graine.
+Elle ajoute quatre relations modérées et explicables :
 
-| Relation | Coefficient initial envisagé | Raisonnement |
+| Relation | Coefficient latent | Raisonnement |
 | --- | ---: | --- |
 | Terrassement — fondations et gros œuvre | 0,30 | Des conditions de sol défavorables peuvent affecter les deux lots. |
 | Fondations et gros œuvre — hausse des matériaux | 0,50 | Le gros œuvre consomme beaucoup de béton et d'acier. |
 | Électricité — plomberie | 0,25 | Les modifications d'aménagement peuvent affecter plusieurs réseaux. |
 | Supervision — retard administratif | 0,40 | Un retard augmente généralement la durée de mobilisation de la supervision. |
 
-Ces coefficients ne sont pas encore validés et ne doivent pas être inscrits mécaniquement dans
-la première version. La matrice complète devra être symétrique, avoir une diagonale égale à 1 et
-être strictement définie positive pour être acceptée par le simulateur.
-
+La matrice complète est symétrique, sa diagonale vaut 1 et elle est strictement définie positive.
+Les coefficients représentent les dépendances latentes de la copule gaussienne. Pour un événement
+binaire, la transformation en `0/impact` crée des ex æquo et atténue normalement la corrélation de
+rang observée. Ces hypothèses restent synthétiques et devront être recalibrées si des historiques ou
+un jugement expert deviennent disponibles.
 ## 10. Méthode d'anonymisation d'un futur registre réel
 
 Si un registre réel devient disponible plus tard, il pourra être anonymisé en :
@@ -233,22 +235,25 @@ montants synthétiques :
 - Homes England, approche par classe de référence, contingence et niveaux P50/P80 :
   <https://www.gov.uk/government/publications/optimism-bias-and-contingency-at-homes-england/optimism-bias-and-contingency-at-homes-england-accessible-version>
 
-## 12. Étapes de réalisation du classeur
+## 12. État de réalisation et reproduction
 
-À la reprise du travail :
+Les trois variantes sont réalisées :
 
-1. partir du modèle `data/templates/risk_register_template.xlsx` ;
-2. renseigner la feuille `metadata` avec le projet, l'unité et la baseline ;
-3. remplacer les exemples de `risk_register` par les dix-huit lignes définies ici ;
-4. indiquer dans `notes` que les valeurs sont synthétiques et pédagogiques ;
-5. ne pas ajouter de feuille de corrélations à la première version ;
-6. charger le registre avec le service applicatif du projet ;
-7. exécuter une simulation reproductible, par exemple avec 10 000 tirages et la graine 42 ;
-8. vérifier les cinq artefacts : résumé, histogramme, sensibilité, tornado et comparaison à la
-   baseline ;
-9. contrôler que toute la suite de tests reste réussie.
+1. variante 1 sans corrélation ;
+2. variante 2 avec quatre corrélations modérées ;
+3. variante 3 conservant ces corrélations avec un stress ciblé sur certaines valeurs.
 
-La création du fichier `.xlsx` était en attente d'un runtime fonctionnel du plugin
-**Spreadsheets** et de son composant `@oai/artifact-tool`. Si ce composant reste indisponible,
-`openpyxl` peut être utilisé comme solution de remplacement explicitement autorisée, en partant
-du modèle existant puis en validant le classeur par une simulation complète.
+Chaque simulation utilise 10 000 tirages et la graine 42. Le workflow Excel produit maintenant huit
+artefacts : résumé statistique, histogramme, courbe en S, table de décision par percentile,
+diagnostic de convergence, sensibilité de Spearman, diagramme tornado et comparaison à la
+baseline.
+
+La validation comprend 44 contrôles fonctionnels : distributions, reproductibilité, corrélations,
+comparaison des variantes, erreurs Excel et recalcul indépendant des sorties. La suite automatisée
+comprend 337 tests et la couverture mesurée lors de la fusion atteint 92,18 %.
+
+Les classeurs sont générés avec `openpyxl` à partir du modèle public du dépôt. Ils restent hors de
+Git conformément à la politique de confidentialité, mais les scripts sous `scripts/case_study/`
+permettent de les reconstruire. Les commandes exactes et l'ordre complet sont documentés dans le
+README de ce dossier. Les preuves tabulaires publiées se trouvent sous `docs/validation/` et le
+rapport évolutif final sous `output/pdf/`.

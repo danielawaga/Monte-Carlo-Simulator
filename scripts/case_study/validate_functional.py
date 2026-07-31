@@ -467,10 +467,10 @@ def independent_output_checks(rec: Recorder) -> None:
     )
     rec.check(
         "Sorties",
-        "table de decision recalculee",
+        "table de décision recalculée",
         decision_ok,
         decision[["percentile", "amount", "recommended_reserve"]].to_dict("records"),
-        "Percentiles, depassement et reserve recalcules independamment",
+        "Percentiles, dépassement et réserve recalculés indépendamment",
     )
 
     convergence = pd.read_csv(run.convergence_path)
@@ -484,10 +484,10 @@ def independent_output_checks(rec: Recorder) -> None:
     )
     rec.check(
         "Sorties",
-        "convergence recalculee",
+        "convergence recalculée",
         convergence_ok,
         f"blocs={len(draw_counts)}; dernier={draw_counts[-1]}; stops={int(convergence['stop_recommended'].sum())}",
-        "Comptages croissants, P90 cumule identique et au plus un arret recommande",
+        "Comptages croissants, P90 cumulé identique et au plus un arrêt recommandé",
     )
 
     s_curve = compute_s_curve_data(samples)
@@ -501,10 +501,10 @@ def independent_output_checks(rec: Recorder) -> None:
     )
     rec.check(
         "Sorties",
-        "courbe S coherente",
+        "courbe en S cohérente",
         s_curve_ok,
-        f"points={len(s_curve)}; probabilite finale={s_curve['cumulative_probability'].iloc[-1]:.6f}",
-        "Totaux tries, probabilites strictement croissantes jusqu'a 1 et image non vide",
+        f"points={len(s_curve)}; probabilité finale={s_curve['cumulative_probability'].iloc[-1]:.6f}",
+        "Totaux triés, probabilités strictement croissantes jusqu'à 1 et image non vide",
     )
 
     artifacts_ok = len(run.artifact_paths) == 8 and all(
@@ -515,7 +515,7 @@ def independent_output_checks(rec: Recorder) -> None:
         "jeu complet de livrables",
         artifacts_ok,
         [path.name for path in run.artifact_paths],
-        "Huit livrables attendus, presents et non vides",
+        "Huit livrables attendus, présents et non vides",
     )
 
 

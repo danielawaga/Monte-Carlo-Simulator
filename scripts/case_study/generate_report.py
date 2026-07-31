@@ -762,7 +762,7 @@ def build_report() -> None:
             "Le modèle traite les impacts événementiels comme déterministes lorsqu’ils surviennent."
         ),
         bullet(
-            "Aucun calendrier de décaissement, effet d’inflation temporelle ou courbe en S n’est encore modélisé."
+            "Une courbe en S empirique est désormais produite ; le calendrier de décaissement et l inflation temporelle restent hors du modèle."
         ),
         P("10.3 Décision avant de poursuivre", h2),
         P(
