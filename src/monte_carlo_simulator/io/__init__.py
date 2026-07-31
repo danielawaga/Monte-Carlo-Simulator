@@ -12,6 +12,7 @@ from .excel_template import create_risk_register_template
 from .exporters import (
     export_baseline_comparison_to_csv,
     export_convergence_to_csv,
+    export_correlation_diagnostics_to_csv,
     export_percentile_table_to_csv,
     export_sensitivity_to_csv,
     export_summary_to_csv,
@@ -22,6 +23,7 @@ __all__ = [
     "create_risk_register_template",
     "export_baseline_comparison_to_csv",
     "export_convergence_to_csv",
+    "export_correlation_diagnostics_to_csv",
     "export_percentile_table_to_csv",
     "export_sensitivity_to_csv",
     "export_summary_to_csv",
