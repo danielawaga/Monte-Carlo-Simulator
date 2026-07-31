@@ -111,9 +111,7 @@ def run_acceptance_case(
     report_lines.extend(["", "## Dominant sensitivity signals", ""])
     report_lines.extend(sensitivity_lines or ["- No defined coefficient."])
     report_lines.extend(["", "## Acceptance checks", ""])
-    report_lines.extend(
-        f"- [{'x' if passed else ' '}] {label}" for label, passed in checks.items()
-    )
+    report_lines.extend(f"- [{'x' if passed else ' '}] {label}" for label, passed in checks.items())
     report_lines.extend(["", "## Generated artifacts", ""])
     report_lines.extend(
         f"- [{'x' if exists else ' '}] `{name}`" for name, exists in artifact_checks.items()
