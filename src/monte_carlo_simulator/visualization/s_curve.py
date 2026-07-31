@@ -14,9 +14,7 @@ def compute_s_curve_data(samples: np.ndarray) -> pd.DataFrame:
     values = _validate_samples(samples)
     sorted_values = np.sort(values, kind="mergesort")
     probabilities = np.arange(1, len(sorted_values) + 1, dtype=float) / len(sorted_values)
-    return pd.DataFrame(
-        {"total": sorted_values, "cumulative_probability": probabilities}
-    )
+    return pd.DataFrame({"total": sorted_values, "cumulative_probability": probabilities})
 
 
 def save_s_curve(
@@ -50,9 +48,7 @@ def save_s_curve(
 
         percentile_labels = [column for column in summary.columns if column.startswith("P")]
         if percentile_labels:
-            colors = plt.colormaps["viridis"](
-                np.linspace(0.2, 0.85, num=len(percentile_labels))
-            )
+            colors = plt.colormaps["viridis"](np.linspace(0.2, 0.85, num=len(percentile_labels)))
             for label, color in zip(percentile_labels, colors, strict=True):
                 try:
                     level = float(label[1:]) / 100.0
@@ -61,14 +57,10 @@ def save_s_curve(
                         f"Invalid percentile column label in summary: {label!r}."
                     ) from exc
                 if not 0 < level < 1:
-                    raise ValidationError(
-                        f"Invalid percentile column label in summary: {label!r}."
-                    )
+                    raise ValidationError(f"Invalid percentile column label in summary: {label!r}.")
                 value = float(summary.iloc[0][label])
                 if not np.isfinite(value):
-                    raise ValidationError(
-                        f"Percentile value for {label!r} must be finite."
-                    )
+                    raise ValidationError(f"Percentile value for {label!r} must be finite.")
                 ax.axvline(value, color=color, linestyle="--", linewidth=1)
                 ax.scatter([value], [level], color=[color], label=f"{label}: {value:.2f}")
             ax.legend()
