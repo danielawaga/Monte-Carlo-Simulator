@@ -40,9 +40,7 @@ def compute_convergence_diagnostics(
     values = _validate_samples(samples)
     level = _validate_probability(confidence_level, "confidence_level")
     size = _validate_positive_integer(block_size, "block_size")
-    stable_blocks = _validate_positive_integer(
-        required_stable_blocks, "required_stable_blocks"
-    )
+    stable_blocks = _validate_positive_integer(required_stable_blocks, "required_stable_blocks")
     minimum = _validate_positive_integer(minimum_blocks, "minimum_blocks")
     if minimum < 2:
         raise ValidationError("minimum_blocks must be at least 2.")
@@ -80,9 +78,7 @@ def compute_convergence_diagnostics(
 
         consecutive = consecutive + 1 if within_tolerance else 0
         stop_recommended = bool(
-            not stop_selected
-            and block_index >= minimum
-            and consecutive >= stable_blocks
+            not stop_selected and block_index >= minimum and consecutive >= stable_blocks
         )
         if stop_recommended:
             stop_selected = True
