@@ -66,8 +66,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             ]
             if run.correlation_diagnostics_path is not None:
                 artifact_lines.append(
-                    "Correlation diagnostics saved to: "
-                    f"{run.correlation_diagnostics_path}"
+                    f"Correlation diagnostics saved to: {run.correlation_diagnostics_path}"
                 )
             if run.baseline_comparison_path is not None:
                 artifact_lines.append(
