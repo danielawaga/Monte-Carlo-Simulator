@@ -51,9 +51,7 @@ def run_acceptance_case(
     correlation = pd.read_csv(run.correlation_diagnostics_path)
 
     amounts = percentile_table.set_index("percentile")["amount"]
-    artifact_checks = {
-        name: (artifact_dir / name).exists() for name in REQUIRED_ARTIFACTS
-    }
+    artifact_checks = {name: (artifact_dir / name).exists() for name in REQUIRED_ARTIFACTS}
     checks = {
         "requested draw count produced": len(run.result.samples) == simulations,
         "P50 <= P80 <= P90": amounts["P50"] <= amounts["P80"] <= amounts["P90"],
@@ -85,7 +83,10 @@ def run_acceptance_case(
         "",
         f"**Overall status: {overall_status}**",
         "",
-        "> Synthetic and explicitly non-representative data. No client, consultant or real project data is included.",
+        (
+            "> Synthetic and explicitly non-representative data. "
+            "No client, consultant or real project data is included."
+        ),
         "",
         "## Run configuration",
         "",
@@ -122,8 +123,11 @@ def run_acceptance_case(
             "",
             "## Scope boundary",
             "",
-            "This report validates the software path and numerical invariants only. "
-            "Credibility of real assumptions still requires an anonymized register and consultant review.",
+            (
+                "This report validates the software path and numerical invariants only. "
+                "Credibility of real assumptions still requires an anonymized register "
+                "and consultant review."
+            ),
             "",
         ]
     )
