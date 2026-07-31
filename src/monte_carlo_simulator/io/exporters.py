@@ -33,3 +33,11 @@ def export_convergence_to_csv(diagnostics: pd.DataFrame, output_path: Path) -> N
     """Export cumulative percentile convergence diagnostics to CSV."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     diagnostics.to_csv(output_path, index=False)
+
+
+def export_correlation_diagnostics_to_csv(
+    diagnostics: pd.DataFrame, output_path: Path
+) -> None:
+    """Export strict correlation-matrix health diagnostics to CSV."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    diagnostics.to_csv(output_path, index=False)
