@@ -88,7 +88,12 @@ def _validate_matrix_values(values: object, dimension: int) -> np.ndarray:
     try:
         np.linalg.cholesky(array)
     except np.linalg.LinAlgError as exc:
-        raise ValidationError("Correlation matrix must be strictly positive definite.") from exc
+        minimum_eigenvalue = float(np.min(np.linalg.eigvalsh(array)))
+        raise ValidationError(
+            "Correlation matrix must be strictly positive definite "
+            f"(minimum eigenvalue={minimum_eigenvalue:.6g}). "
+            "Automatic repair is disabled; correct the workbook matrix explicitly."
+        ) from exc
     array.setflags(write=False)
     return array
 

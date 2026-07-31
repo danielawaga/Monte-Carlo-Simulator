@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from monte_carlo_simulator.analysis import (
+    build_correlation_diagnostics,
     build_percentile_decision_table,
     build_tornado_data,
     compute_baseline_comparison,
@@ -15,6 +16,7 @@ from monte_carlo_simulator.exceptions import ValidationError
 from monte_carlo_simulator.io import (
     export_baseline_comparison_to_csv,
     export_convergence_to_csv,
+    export_correlation_diagnostics_to_csv,
     export_percentile_table_to_csv,
     export_sensitivity_to_csv,
     export_summary_to_csv,
@@ -117,6 +119,11 @@ def run_simulation_from_excel(
     s_curve_path = target_dir / "simulation_s_curve.png"
     percentile_table_path = target_dir / "percentile_decision_table.csv"
     convergence_path = target_dir / "convergence_diagnostics.csv"
+    correlation_diagnostics_path = (
+        target_dir / "correlation_diagnostics.csv"
+        if register.correlation_matrix is not None
+        else None
+    )
     sensitivity_path = target_dir / "sensitivity_summary.csv"
     tornado_path = target_dir / "sensitivity_tornado.png"
     baseline = register.metadata.baseline_estimate
@@ -157,6 +164,13 @@ def run_simulation_from_excel(
     )
     export_convergence_to_csv(convergence, convergence_path)
 
+    if register.correlation_matrix is not None and correlation_diagnostics_path is not None:
+        correlation_diagnostics = build_correlation_diagnostics(register.correlation_matrix)
+        export_correlation_diagnostics_to_csv(
+            correlation_diagnostics,
+            correlation_diagnostics_path,
+        )
+
     if result.item_samples is None:
         raise ValidationError("Sensitivity analysis requires SimulationResult.item_samples.")
     sensitivity = compute_spearman_sensitivity(result.item_samples, result.samples)
@@ -180,4 +194,5 @@ def run_simulation_from_excel(
         s_curve_path=s_curve_path,
         percentile_table_path=percentile_table_path,
         convergence_path=convergence_path,
+        correlation_diagnostics_path=correlation_diagnostics_path,
     )
