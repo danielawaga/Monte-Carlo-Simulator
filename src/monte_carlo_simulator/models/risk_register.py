@@ -49,6 +49,7 @@ class ExcelSimulationRun:
     s_curve_path: Path | None = None
     percentile_table_path: Path | None = None
     convergence_path: Path | None = None
+    correlation_diagnostics_path: Path | None = None
 
     @property
     def artifact_paths(self) -> tuple[Path, ...]:
@@ -60,6 +61,8 @@ class ExcelSimulationRun:
             paths.append(self.percentile_table_path)
         if self.convergence_path is not None:
             paths.append(self.convergence_path)
+        if self.correlation_diagnostics_path is not None:
+            paths.append(self.correlation_diagnostics_path)
         if self.sensitivity_path is not None:
             paths.append(self.sensitivity_path)
         if self.tornado_path is not None:
