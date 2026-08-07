@@ -1,88 +1,39 @@
 # Monte-Carlo-Simulator
 
-A Python project for probabilistic project cost and schedule risk analysis with Monte Carlo simulation.
+Python application for probabilistic project cost and schedule risk analysis. The project turns an Excel risk register into a simulated total distribution, decision percentiles, baseline reserves, correlation diagnostics, convergence evidence and sensitivity outputs.
 
-## 1. Project context
+## Current status — S4 usability
 
-This repository hosts an academic project to model uncertainty on project costs/durations and support risk-informed decisions.
+The repository now contains a complete consultant-facing Streamlit workflow in addition to the CLI and Python application service.
 
-## 2. Objectives
+Available features:
 
-- Build a layered and maintainable simulation architecture.
-- Run vectorized Monte Carlo simulations with reproducible seeds.
-- Provide statistical and visual outputs for project risk analysis.
+- vectorized and reproducible Monte Carlo simulation with NumPy;
+- six distributions: triangular, Beta-PERT, uniform, normal, arithmetic-parameterized log-normal and Bernoulli × impact event risk;
+- versioned Excel schema `1.0` with aggregated validation errors;
+- optional correlations through a Gaussian copula and Cholesky decomposition;
+- strict matrix policy: invalid correlation matrices are rejected and never repaired silently;
+- histogram and empirical S-curve;
+- P50/P80/P90/P95 and configurable percentiles;
+- baseline exceedance probability and non-negative percentile reserves;
+- Spearman sensitivity and tornado chart;
+- cumulative percentile convergence diagnostics;
+- interactive Streamlit upload, simulation, Plotly charts, confidence selector and downloadable artifact bundle;
+- reproducible synthetic acceptance case and consultant-validation protocol;
+- user, methodology, handover and restitution documentation.
 
-## 3. Currently available features
+## Installation
 
-- Layered project architecture with clear packages.
-- Vectorized and reproducible Monte Carlo engine.
-- Six distributions: triangular, Beta-PERT with configurable `lambda_shape`, uniform,
-  normal, arithmetic-parameterized log-normal and Bernoulli × impact event risk.
-- Deterministic handling of zero-width distributions, zero standard deviations and
-  event probabilities equal to 0 or 1.
-- Validation of required finite numeric parameters and strictly positive integer sample sizes.
-- Case-insensitive distribution aliases and unique risk-item names after trimming.
-- Heterogeneous cost or duration simulations with one vectorized draw per item.
-- Versioned Excel risk-register schema `1.0`, documented template and aggregated validation errors.
-- Optional Gaussian-copula correlations from a `correlations` Excel sheet using a strictly positive-definite matrix and Cholesky sampling.
-- Strict correlation diagnostics with eigenvalue, condition-number and policy evidence; invalid matrices are rejected and never repaired silently.
-- End-to-end Excel → `RiskItem` → simulation → decision artifacts workflow.
-- Summary statistics: mean, median, standard deviation, minimum, maximum and configurable collision-safe percentile labels such as P50, P95.1 and P99.5.
-- Histogram and empirical S-curve exports with percentile markers.
-- Decision-oriented percentile table with exceedance probability, baseline gap and recommended reserve.
-- Cumulative percentile convergence diagnostics with a recommended stable draw count.
-- Spearman sensitivity analysis and tornado chart.
-- Baseline comparison report with exceedance probability, percentile gaps and P80/P90 reserves.
-- Reproducible synthetic S3 acceptance case and consultant-validation protocol.
-- CLI for both Excel inputs and the built-in demonstration; initial Streamlit skeleton.
+Python 3.11+ is required.
 
-### Distribution inputs
-
-| Canonical name | Accepted aliases | Required parameters |
-| --- | --- | --- |
-| `triangular` | — | `minimum`, `most_likely`, `maximum` |
-| `pert` | `beta-pert`, `beta_pert`, `beta pert` | `minimum`, `most_likely`, `maximum`; optional `lambda_shape` (default `4.0`) |
-| `uniform` | — | `minimum`, `maximum` |
-| `normal` | — | `mean`, `standard_deviation` |
-| `lognormal` | `log-normal`, `log_normal`, `log normal` | arithmetic `mean`, arithmetic `standard_deviation` |
-| `event` | `event-based`, `event_based`, `event based`, `eventual`, `bernoulli`, `bernoulli-event`, `bernoulli_event` | `probability`, `impact` |
-
-Distribution identifiers are trimmed and case-insensitive. Finite negative values are valid for three-point bounds, uniform bounds, normal means and event impacts. A log-normal mean must be strictly positive; every standard deviation must be non-negative.
-
-### Excel risk register
-
-The public template is [`data/templates/risk_register_template.xlsx`](data/templates/risk_register_template.xlsx). It contains fictitious examples for all six distributions, field instructions and simple Excel drop-down lists. The required sheets are:
-
-- `metadata`: schema and project-level key/value information;
-- `risk_register`: one project item or event risk per row;
-- `instructions`: documentation included for users of the template.
-
-Schema `1.0` requires `analysis_type` to be `cost` or `duration`. Blank item units inherit `default_unit`, and all active rows must resolve to the same unit. This prevents silent addition of incompatible currencies or time units. `baseline_estimate` is an optional finite reference value returned with the results; it is deliberately **not** added to the simulated total.
-
-See [the user guide](docs/user_guide.md) for the complete schema and validation rules.
-
-### Correlations
-
-Add an optional `correlations` sheet to simulate dependencies between active items. The first row contains column item names, the first column contains row item names, and coefficients are aligned by name before validation. The matrix must cover exactly the active items, be square, symmetric, finite, bounded in `[-1, 1]`, have a unit diagonal and be strictly positive definite.
-
-The policy is deliberately strict: the application does not project, clip, jitter or otherwise repair the matrix. A rejected matrix reports its minimum eigenvalue so that the workbook can be corrected explicitly. Valid correlated runs create `correlation_diagnostics.csv` with the numerical health indicators and `automatic_repair_applied = False`.
-
-Generate the synthetic public workbook with:
+### Linux / macOS
 
 ```bash
-python -m scripts.generate_correlated_cost_register
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -e ".[dev,ui]"
 ```
-
-It writes `data/examples/correlated_cost_register.xlsx`, which remains ignored like other generated `.xlsx` files.
-
-## 4. Planned features
-
-- Interactive Streamlit workflow.
-- Scenario comparison and what-if mode.
-- Automated PDF or PowerPoint decision exports.
-- Calibration from authorized historical data.
-
-## 5. Installation
 
 ### Windows PowerShell
 
@@ -90,21 +41,28 @@ It writes `data/examples/correlated_cost_register.xlsx`, which remains ignored l
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -e ".[dev]"
+pip install -e ".[dev,ui]"
 ```
 
-### Linux/macOS
+## Streamlit interface
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-pip install -e ".[dev]"
+streamlit run streamlit_app/app.py
 ```
 
-## 6. Execution commands
+The interface lets a consultant:
 
-Run the included Excel template:
+1. upload a schema-1.0 `.xlsx` risk register;
+2. choose the simulation count and seed;
+3. choose P50, P80, P90 or P95 as the decision level;
+4. inspect the interactive distribution and S-curve;
+5. read the baseline exceedance probability and reserve;
+6. inspect Spearman sensitivity and convergence;
+7. download every generated artifact or one ZIP bundle.
+
+Start with [`docs/user_guide_30min.md`](docs/user_guide_30min.md).
+
+## CLI
 
 ```bash
 python -m monte_carlo_simulator.cli \
@@ -114,25 +72,78 @@ python -m monte_carlo_simulator.cli \
   --output-dir data/output
 ```
 
-The Excel workflow writes the histogram, S-curve, summary, percentile decision table, convergence diagnostics, Spearman sensitivity table and tornado chart. A correlated register also writes `correlation_diagnostics.csv`. When the workbook supplies `baseline_estimate`, the command additionally writes `baseline_comparison.csv`. The baseline remains contextual and is never added to simulated totals.
-
 Without `--input`, the historical fictitious demonstration remains available:
 
 ```bash
 python -m monte_carlo_simulator.cli
 ```
 
-### Reproducible S3 acceptance case
+## Excel risk register
 
-Run the complete synthetic correlated workflow and generate a Markdown evidence report:
+The public fictitious template is [`data/templates/risk_register_template.xlsx`](data/templates/risk_register_template.xlsx).
+
+Required sheets:
+
+- `metadata` — schema version, project name, `cost`/`duration`, common unit and optional baseline;
+- `risk_register` — one active cost/duration item or event risk per row;
+- `instructions` — embedded schema guidance.
+
+Optional sheet:
+
+- `correlations` — square matrix aligned by active item names.
+
+Supported canonical distributions and required parameters:
+
+| Distribution | Required parameters |
+| --- | --- |
+| `triangular` | `minimum`, `most_likely`, `maximum` |
+| `pert` | `minimum`, `most_likely`, `maximum`; optional `lambda_shape` |
+| `uniform` | `minimum`, `maximum` |
+| `normal` | `mean`, `standard_deviation` |
+| `lognormal` | arithmetic `mean`, arithmetic `standard_deviation` |
+| `event` | `probability`, `impact` |
+
+The baseline is contextual information only. It is never added implicitly to the simulated total.
+
+## Decision artifacts
+
+A standard Excel run produces:
+
+- `simulation_summary.csv`;
+- `simulation_histogram.png`;
+- `simulation_s_curve.png`;
+- `percentile_decision_table.csv`;
+- `convergence_diagnostics.csv`;
+- `sensitivity_summary.csv`;
+- `sensitivity_tornado.png`.
+
+If a baseline exists, the workflow adds `baseline_comparison.csv`. If correlations are supplied, it adds `correlation_diagnostics.csv`.
+
+## Reproducible S3/S4 validation path
+
+Generate and execute the synthetic correlated acceptance case with:
 
 ```bash
 python -m scripts.run_s3_acceptance_case
 ```
 
-The output is written under `data/output/s3_acceptance/`. The data is synthetic and explicitly non-representative; this command validates the software path and numerical invariants, not the credibility of real project assumptions. Use the [consultant workshop protocol](docs/consultant_validation_workshop.md) and the anonymized [decision-log template](data/templates/consultant_validation_log.csv) for field validation.
+Outputs are written under `data/output/s3_acceptance/`. This case validates the software path and numerical invariants; it does not validate the credibility of a real client's assumptions.
 
-## 7. Test and quality commands
+For field validation, use:
+
+- [`docs/consultant_validation_workshop.md`](docs/consultant_validation_workshop.md);
+- [`data/templates/consultant_validation_log.csv`](data/templates/consultant_validation_log.csv).
+
+## Documentation
+
+- [30-minute user guide](docs/user_guide_30min.md)
+- [Detailed Excel/schema guide](docs/user_guide.md)
+- [Consultant-facing methodology note](docs/methodology_note.md)
+- [Technical methodology](docs/methodology.md)
+- [Technical handover](docs/handover.md)
+- [S4 oral restitution script](docs/s4_restitution.md)
+
+## Quality
 
 ```bash
 ruff check .
@@ -142,32 +153,34 @@ pytest --cov=monte_carlo_simulator --cov-report=term-missing --cov-fail-under=85
 mypy src/monte_carlo_simulator
 ```
 
-## 8. Simplified tree
+The repository also runs these checks on pull requests through GitHub Actions.
+
+## Simplified architecture
 
 ```text
 src/monte_carlo_simulator/
-  models/ distributions/ engine/ analysis/ io/ visualization/ application/
-tests/
-data/input/ data/output/ data/templates/
+  models/
+  distributions/
+  engine/
+  analysis/
+  io/
+  visualization/
+  application/
 streamlit_app/
+tests/
+scripts/
+data/templates/
+docs/
 ```
 
-## 9. Git conventions
+The interactive layer must remain thin: probabilistic rules belong in `src/monte_carlo_simulator`, not in Streamlit.
 
-- Keep small, focused commits.
-- Add tests for new behavior.
-- Preserve API compatibility when extending advanced features.
-
-## 10. Confidentiality
+## Confidentiality
 
 - Do not commit real risk registers without anonymization and authorization.
-- Do not add confidential project, personal or client data.
-- `.xlsx` and `.xls` files remain ignored globally; only the public fictitious template is explicitly allowed by `.gitignore`.
+- Do not add client identifiers or personal data to examples or tests.
+- `.xlsx` and `.xls` files remain ignored globally except for the public fictitious template explicitly allowed by the repository rules.
 
-## Analyse de sensibilité Spearman et tornado
+## Next extensions
 
-Le workflow Excel produit `sensitivity_summary.csv` et `sensitivity_tornado.png`. Le tableau contient les colonnes `item_name`, `spearman_rho`, `absolute_rho`, `rank`, `direction`, `is_defined` et `undefined_reason`.
-
-La sensibilité V1 utilise la corrélation de rang de Spearman entre les tirages de chaque poste (`SimulationResult.item_samples`) et le total simulé. Spearman mesure une association monotone par rangs : il est plus robuste que Pearson pour les distributions non normales, asymétriques ou événementielles avec de nombreux ex æquo. Les postes déterministes ont une corrélation mathématiquement indéfinie ; ils sont exportés avec `spearman_rho = NaN`, sans rang et `undefined_reason = constant_input`, puis exclus par défaut du tornado.
-
-Le signe indique le sens de l'association monotone et la valeur absolue sert uniquement au classement. Lorsque des entrées sont corrélées, ces coefficients ne sont pas causaux, ne décomposent pas additivement la variance et ne doivent pas être normalisés pour sommer à 100 %.
+Weeks 5–6 are reserved for user feedback and optional extensions: what-if mode, scenario comparison, PDF/PowerPoint decision exports and calibration from authorized historical data.

@@ -1,84 +1,122 @@
-# User guide
+# User guide — Excel schema and execution reference
+
+For a consultant-facing walkthrough, start with [`user_guide_30min.md`](user_guide_30min.md). This document is the detailed reference for the Excel schema, validation rules and available execution paths.
 
 ## Start from the template
 
-Copy `data/templates/risk_register_template.xlsx` outside the repository before entering real
-project data. The committed file contains fictitious examples for all six supported
-distributions. Microsoft Excel is not required by the application: `.xlsx` files are read and
-written with `openpyxl`.
+Copy `data/templates/risk_register_template.xlsx` outside the repository before entering real project data. The committed workbook is fictitious and covers all six supported distributions.
 
-The workbook schema is versioned. This guide describes schema `1.0`; any other value is rejected
-instead of being guessed or migrated silently.
+The workbook schema is versioned. This guide describes schema `1.0`; an unsupported version is rejected instead of being guessed or migrated silently.
 
 ## `metadata` sheet
 
-The sheet uses the headers `key` and `value`. All six keys must be present. A value marked
-optional may have an empty cell.
+The sheet uses the headers `key` and `value`.
 
-| Key | Required value | Rule |
+| Key | Required | Rule |
 | --- | --- | --- |
 | `schema_version` | yes | Text equal to `1.0` |
 | `project_name` | yes | Non-empty text |
 | `analysis_type` | yes | `cost` or `duration`, case-insensitive |
-| `default_unit` | yes | Common currency or time unit, for example `EUR`, `MAD`, `USD`, `days` or `hours` |
-| `baseline_estimate` | no | Finite real number when supplied; booleans, NaN and infinities are invalid |
+| `default_unit` | yes | Common currency or time unit such as `MAD`, `EUR`, `days` |
+| `baseline_estimate` | no | Finite real number when supplied |
 | `description` | no | Non-confidential text |
 
-`baseline_estimate` is contextual information for comparison and reporting. It is returned in
-the workflow metadata but is not automatically added to the simulated samples. To model a
-deterministic amount in the simulated total, add an explicit active row, such as a uniform row
-whose minimum equals its maximum. This explicit rule avoids counting a baseline twice.
+`baseline_estimate` is contextual information for comparison and reporting. It is **not** automatically added to simulated samples. If a deterministic amount must form part of the simulated total, represent it as an explicit active item.
 
 ## `risk_register` sheet
 
-One row represents one cost/duration item or one event risk. These columns form schema `1.0`:
+One row represents one cost/duration item or one event risk.
 
 | Column | Value |
 | --- | --- |
-| `name` | Required non-empty item name; unique without regard to case or outer spaces |
+| `name` | Required non-empty item name, unique ignoring case and outer spaces |
 | `distribution` | Required canonical name or supported alias |
 | `minimum` | Minimum for triangular, PERT or uniform |
 | `most_likely` | Mode for triangular or PERT |
 | `maximum` | Maximum for triangular, PERT or uniform |
 | `mean` | Arithmetic mean for normal or log-normal |
 | `standard_deviation` | Arithmetic standard deviation for normal or log-normal |
-| `probability` | Event occurrence probability in `[0, 1]` |
+| `probability` | Event probability in `[0, 1]` |
 | `impact` | Deterministic event impact |
 | `lambda_shape` | Optional positive PERT shape; blank means `4.0` |
 | `category` | Optional descriptive category |
 | `unit` | Optional row unit; blank inherits `default_unit` |
-| `enabled` | Optional column and value; blank means `TRUE`, `FALSE` ignores the row |
-| `notes` | Optional column and free text |
+| `enabled` | Optional; blank means active, `FALSE` ignores the row |
+| `notes` | Optional free text |
 
-The columns `enabled` and `notes` may be absent. Every other column must exist, although cells
-that are unused by a row's distribution may stay empty. Extra workbook columns are ignored.
+`enabled` and `notes` may be absent. Other schema columns must exist, although unused cells may remain blank.
 
 ### Required parameters by distribution
 
 | Distribution | Required cells | Domain |
 | --- | --- | --- |
 | `triangular` | `minimum`, `most_likely`, `maximum` | `minimum <= most_likely <= maximum` |
-| `pert` | `minimum`, `most_likely`, `maximum` | Same ordering; optional `lambda_shape > 0`, default `4.0` |
+| `pert` | `minimum`, `most_likely`, `maximum` | same ordering; optional `lambda_shape > 0` |
 | `uniform` | `minimum`, `maximum` | `minimum <= maximum` |
 | `normal` | `mean`, `standard_deviation` | `standard_deviation >= 0` |
-| `lognormal` | `mean`, `standard_deviation` | Arithmetic `mean > 0`, arithmetic `standard_deviation >= 0` |
+| `lognormal` | `mean`, `standard_deviation` | arithmetic `mean > 0`, deviation `>= 0` |
 | `event` | `probability`, `impact` | `probability` in `[0, 1]` |
 
-Supported aliases are documented in `docs/methodology.md`. Numeric Excel cells and finite numeric
-strings such as `"125.5"` are accepted. Booleans are never accepted as numbers. Empty cells,
-`NaN` values and whitespace-only strings are treated as blank. Strings representing `NaN` or an
-infinity are invalid.
+Finite numeric Excel cells and finite numeric strings are accepted at the import boundary. Booleans, `NaN`, infinities and arbitrary text are not accepted as numeric parameters.
 
-Finite negative values are allowed where they have a valid interpretation, including an event
-opportunity with a negative impact. They are not allowed for a standard deviation, a PERT shape,
-or a log-normal mean. Normal, triangular and uniform rows can produce or contain negative values.
+Finite negative values are allowed when mathematically meaningful, including a negative event impact representing an opportunity. They are not valid for a standard deviation, a PERT shape or a log-normal mean.
+
+## Distribution aliases
+
+Canonical names are `triangular`, `pert`, `uniform`, `normal`, `lognormal` and `event`.
+
+Accepted aliases include:
+
+- `beta-pert`, `beta_pert`, `beta pert` → `pert`;
+- `log-normal`, `log_normal`, `log normal` → `lognormal`;
+- `event-based`, `event_based`, `event based`, `eventual`, `bernoulli`, `bernoulli-event`, `bernoulli_event` → `event`.
+
+Distribution names are trimmed and case-insensitive.
 
 ## Units
 
-Every active row must resolve to one common unit. A blank row unit inherits `default_unit`;
-matching is case-insensitive. A register containing `EUR` and `USD`, `MAD` and `EUR`, or `days`
-and `hours` is rejected. The importer never performs exchange-rate or time-unit conversion.
+Every active row must resolve to one common unit. A blank row unit inherits `default_unit`; matching is case-insensitive. Registers mixing currencies or time units are rejected. The importer never performs exchange-rate or time-unit conversion.
+
 Disabled rows are ignored before parameter and unit validation.
+
+## Optional `correlations` sheet
+
+The sheet defines a square matrix whose rows and columns are active item names. Row and column order may differ because alignment is performed by name before validation.
+
+The matrix must:
+
+- cover exactly the active items;
+- be square and finite;
+- be symmetric;
+- contain coefficients in `[-1, 1]`;
+- have a unit diagonal;
+- be strictly positive definite.
+
+The implementation uses a Gaussian copula with Cholesky decomposition. Invalid matrices are rejected. The application does not project, clip, jitter or otherwise repair a user matrix silently.
+
+A valid correlated run writes `correlation_diagnostics.csv` with numerical health evidence and `automatic_repair_applied = False`.
+
+## Run the Streamlit interface
+
+Install UI dependencies and start the app:
+
+```bash
+pip install -e ".[ui]"
+streamlit run streamlit_app/app.py
+```
+
+The interface provides:
+
+- `.xlsx` upload;
+- simulation count and seed controls;
+- P50/P80/P90/P95 decision-level selector;
+- interactive Plotly histogram and S-curve;
+- baseline exceedance probability and reserve;
+- interactive Spearman tornado;
+- convergence view and correlation diagnostics;
+- individual artifact downloads and a ZIP bundle.
+
+Validation failures are displayed with workbook context whenever available.
 
 ## Run the CLI
 
@@ -90,79 +128,88 @@ python -m monte_carlo_simulator.cli \
   --output-dir data/output
 ```
 
-The output directory receives:
+Without `--input`, the built-in fictitious demonstration remains available:
 
-- `simulation_summary.csv`, with moments and configured percentiles;
-- `simulation_histogram.png`, with percentile markers.
+```bash
+python -m monte_carlo_simulator.cli
+```
 
-Using the same workbook, item order, simulation count, confidence levels and seed reproduces the
-same samples. Omitting `--input` preserves the built-in demonstration and writes
-`triangular_histogram.png`.
+## Generated artifacts
+
+A standard Excel run produces:
+
+- `simulation_summary.csv` — mean, median, standard deviation, min/max and configured percentiles;
+- `simulation_histogram.png` — static histogram with percentile markers;
+- `simulation_s_curve.png` — empirical cumulative curve;
+- `percentile_decision_table.csv` — percentile, exceedance probability, baseline gap and reserve where applicable;
+- `convergence_diagnostics.csv` — cumulative stability of the target percentile;
+- `sensitivity_summary.csv` — Spearman coefficient, absolute coefficient, rank and defined/undefined status;
+- `sensitivity_tornado.png` — defined sensitivity rows ordered by importance.
+
+Optional artifacts:
+
+- `baseline_comparison.csv` when `baseline_estimate` exists;
+- `correlation_diagnostics.csv` when a correlation matrix exists.
+
+## Reading the Spearman outputs
+
+The sensitivity table contains:
+
+- `item_name`;
+- `spearman_rho`;
+- `absolute_rho`;
+- `rank`;
+- `direction`;
+- `is_defined`;
+- `undefined_reason`.
+
+A deterministic input is constant, so its Spearman correlation is mathematically undefined. Such a row remains in the CSV with `undefined_reason = constant_input` and is excluded from the tornado by default.
+
+With correlated inputs, Spearman remains descriptive. It is not a causal effect, not an additive variance decomposition and should not be normalized to sum to 100 %.
+
+## Baseline comparison
+
+When `baseline_estimate` is present, the workflow reports:
+
+- the baseline;
+- the simulated mean;
+- strict `P(total > baseline)`;
+- P50, P80 and P90;
+- percentile gaps against baseline;
+- relative gaps when the baseline is positive;
+- non-negative reserves.
+
+Equality with the baseline is not counted as an exceedance. Relative gaps are undefined for zero or negative baselines.
+
+## Convergence
+
+The convergence diagnostic recomputes the target percentile over cumulative blocks of samples. It tracks absolute and relative changes, counts consecutive stable blocks and can mark one recommended stopping point.
+
+A stable percentile estimate indicates that the sample count is numerically adequate for that run. It does not validate the business assumptions in the workbook.
 
 ## Validation errors
 
-The loader collects independent problems before failing. Row problems include the worksheet,
-Excel row number, item name when available, field and rejected value. Common causes include:
+The loader collects independent problems before failing. Common causes include:
 
-- missing `metadata` or `risk_register` sheet;
-- missing required column or metadata key;
+- missing required worksheet, metadata key or column;
 - unsupported schema version or distribution;
-- blank or duplicate item names;
-- missing distribution parameters or invalid parameter ordering;
-- a boolean, non-numeric text, NaN or infinity used as a number;
-- probability outside `[0, 1]`, negative deviation or non-positive PERT shape;
+- blank or duplicate names;
+- missing or invalid distribution parameters;
+- invalid probability, standard deviation or PERT shape;
 - incompatible units or no active rows;
-- a missing, corrupt or non-`.xlsx` input file.
+- a missing, corrupt or non-`.xlsx` input;
+- a malformed or non-positive-definite correlation matrix.
 
-For correlated simulations, add a `correlations` sheet with active item names on both axes and finite coefficients in `[-1, 1]`; row and column order may differ. Fix every reported issue and run the command again. Programming exceptions are not converted into
-workbook validation messages.
+Programming exceptions are not converted into workbook validation messages.
+
+## Reproducibility
+
+Using the same workbook, active item order, simulation count, confidence levels and seed reproduces the same samples. For a decision trace, record at minimum the input identifier, repository commit, number of simulations and seed.
 
 ## Confidentiality
 
-Real client and project registers must not be committed. Repository rules ignore all `.xlsx` and
-`.xls` files except the single public template. Keep actual workbooks outside Git, remove personal
-or client identifiers from test cases, and only share anonymized data under the appropriate
-authorization.
+Real client and project registers must not be committed. Repository rules ignore `.xlsx` and `.xls` files except the public fictitious template. Keep real workbooks outside Git and only share anonymized data under the appropriate authorization.
 
-## Current interface scope
+## Current extension boundary
 
-The CLI and Python application service support the complete schema-v1 workflow. The Streamlit
-directory remains an informational skeleton; a complete Streamlit interface is not implemented.
-sensitivity analysis, tornado charts,
-automatic convergence, scenario comparison, and PDF/PowerPoint export remain outside this scope.
-
-## Reading the Spearman sensitivity outputs
-
-After an Excel run, open `sensitivity_summary.csv` to review item-level sensitivity. The CSV
-columns are:
-
-- `item_name`: risk item name from the workbook.
-- `spearman_rho`: Spearman rank correlation with the total, between -1 and 1 when defined.
-- `absolute_rho`: absolute coefficient used for ordering importance.
-- `rank`: 1 for the strongest defined association; blank for undefined items.
-- `direction`: `positive`, `negative`, `neutral` or `undefined`.
-- `is_defined`: whether the coefficient is interpretable.
-- `undefined_reason`: for example `constant_input` for deterministic columns.
-
-`sensitivity_tornado.png` visualizes the defined rows horizontally around zero. Bars to the
-right are positive associations and bars to the left are negative associations; the most
-important defined item appears at the top. Constant deterministic items are excluded from
-this chart by default but remain visible in the CSV.
-
-Use the tornado as a screening and prioritization aid. For correlated inputs, do not read
-the ranking as causality or as a percentage contribution to total variance.
-
-## Planned features
-
-Future work still includes convergence diagnostics, S-curves, Streamlit exploration and
-scenario comparison. Spearman sensitivity analysis and the tornado chart are now available
-in the Excel workflow.
-
-## Baseline comparison report
-
-When `baseline_estimate` is present, the Excel workflow creates
-`baseline_comparison.csv`. It contains the baseline, simulated mean, P50, P80 and P90, the
-strict exceedance probability, absolute and relative percentile gaps, and non-negative
-percentile reserves. Equality with the baseline is not an exceedance. Relative gaps are left
-undefined for zero or negative baselines. If the metadata value is absent, this optional
-artifact is not created.
+The S4 scope is implemented: Streamlit, tests/quality gate, user documentation, methodology note and handover material. Planned S5/S6 extensions include what-if analysis, scenario comparison, PDF/PowerPoint exports and calibration from authorized historical data.

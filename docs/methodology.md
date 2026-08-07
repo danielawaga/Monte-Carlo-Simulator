@@ -1,175 +1,227 @@
-# Méthodologie
+# Méthodologie technique
 
-## Simulation Monte Carlo
+Pour une version destinée à un public non mathématicien, voir [`methodology_note.md`](methodology_note.md). Ce document décrit les choix techniques et invariants du moteur.
 
-La simulation Monte Carlo répète un grand nombre de tirages aléatoires pour approximer la
-distribution d'un résultat global. Le moteur construit un seul `numpy.random.Generator` à partir
-de `random_seed`, puis le transmet à chaque loi. Deux simulations ayant la même configuration,
-les mêmes postes dans le même ordre et la même graine produisent exactement les mêmes vecteurs.
-La taille demandée doit être un entier strictement positif.
+## 1. Simulation Monte Carlo et reproductibilité
 
-## Lois prises en charge
+Le moteur construit un seul `numpy.random.Generator` à partir de `random_seed`, puis le transmet aux distributions. À registre, ordre des postes, configuration et seed identiques, les mêmes vecteurs sont reproduits.
 
-Dans l'API Python, tous les paramètres requis doivent être des nombres réels finis : les booléens,
-chaînes, nombres complexes, `NaN` et infinis sont refusés. À la frontière Excel, une chaîne
-numérique finie est convertie explicitement ; les chaînes arbitraires, booléens et valeurs non
-finies sont refusés. Les cellules vides, les valeurs `NaN` et les chaînes composées uniquement
-d'espaces sont considérées comme absentes.
+Chaque poste est simulé sous forme d'un vecteur NumPy complet. Les vecteurs sont additionnés élément par élément pour produire la distribution du total. Aucune boucle Python ne porte sur les tirages individuels ; la boucle métier porte sur les postes.
+
+La taille de simulation doit être un entier strictement positif.
+
+## 2. Validation numérique générale
+
+Dans l'API Python, les paramètres requis doivent être des nombres réels finis. Les booléens, chaînes arbitraires, nombres complexes, `NaN` et infinis sont refusés.
+
+À la frontière Excel, une chaîne numérique finie peut être convertie explicitement. Les cellules vides, `NaN` et chaînes composées uniquement d'espaces sont considérées comme absentes.
+
+## 3. Distributions
 
 ### Triangulaire
 
-La loi triangulaire est définie par un minimum `a`, une valeur la plus probable `m` et un maximum
-`b`, avec `a ≤ m ≤ b`. Son espérance vaut `(a + m + b) / 3`. Les valeurs négatives sont admises.
-Si `a = m = b`, le résultat est le vecteur constant `a`. Les modes placés sur l'une des deux
-bornes sont également valides. Le tirage utilise l'inverse de la fonction de répartition sur
-l'intervalle unité, puis une interpolation stable, afin que des bornes finies extrêmes ne
-produisent pas d'infinis par débordement de `b - a`.
+Paramètres : minimum `a`, mode `m`, maximum `b`, avec `a <= m <= b`.
+
+```text
+E[X] = (a + m + b) / 3
+```
+
+Les valeurs négatives sont admises. Si `a = m = b`, le résultat est déterministe. L'implémentation utilise une transformation inverse stable afin d'éviter les débordements associés à des bornes finies très éloignées.
 
 ### Beta-PERT
 
-La loi Beta-PERT utilise les mêmes trois valeurs et un paramètre de forme `lambda_shape = λ`,
-strictement positif et égal à `4.0` par défaut. Pour `a < b`, une variable bêta `Y` est définie par :
+Paramètres : `a`, `m`, `b` et `lambda_shape = λ > 0`, avec `λ = 4` par défaut.
+
+Pour `a < b` :
 
 ```text
 alpha = 1 + λ × (m - a) / (b - a)
 beta  = 1 + λ × (b - m) / (b - a)
-X     = a + (b - a) × Y
+X     = a + (b - a) × Y,  Y ~ Beta(alpha, beta)
 ```
 
-L'implémentation évalue les proportions et l'interpolation sous une forme numériquement stable
-pour éviter le débordement lorsque les bornes finies sont très éloignées. Le mode transformé vaut
-`m` et l'espérance vaut :
+Son espérance est :
 
 ```text
 E[X] = (a + λ × m + b) / (λ + 2)
 ```
 
-Si `a = m = b`, le résultat est constant et aucun paramètre bêta n'est calculé.
+Si `a = m = b`, le résultat est constant.
 
 ### Uniforme
 
-La loi uniforme accepte deux bornes finies `a ≤ b`. Toutes les valeurs de l'intervalle ont la même
-densité et l'espérance vaut `(a + b) / 2`. Les bornes négatives sont valides. Si `a = b`, le
-résultat est le vecteur constant `a`.
+Deux bornes finies `a <= b` :
+
+```text
+E[X] = (a + b) / 2
+```
+
+Les bornes négatives sont valides. `a = b` produit une série constante.
 
 ### Normale
 
-La loi normale est paramétrée par une moyenne arithmétique finie `m` et un écart-type fini `s ≥ 0`.
-Elle n'est pas bornée : une moyenne négative est mathématiquement valide et des tirages négatifs
-restent possibles quelle que soit une moyenne positive. Si `s = 0`, le résultat est le vecteur
-constant `m`.
+Paramètres : moyenne arithmétique finie `m` et écart-type `s >= 0`. La loi n'est pas bornée et peut produire des valeurs négatives. `s = 0` produit une série constante.
 
 ### Log-normale
 
-Les champs `mean = m` et `standard_deviation = s` sont exprimés dans l'espace arithmétique, avec
-`m > 0` et `s ≥ 0`. Pour `s > 0`, le moteur les convertit en paramètres de l'espace logarithmique :
+Les paramètres Excel sont une moyenne arithmétique `m > 0` et un écart-type arithmétique `s >= 0`. Pour `s > 0`, ils sont transformés vers l'espace logarithmique :
 
 ```text
 sigma_log² = ln(1 + (s / m)²)
 mu_log     = ln(m) - sigma_log² / 2
 ```
 
-La conversion est calculée sous une forme logarithmique stable afin d'éviter le débordement du
-rapport `s / m`, tout en appliquant exactement ces formules. Les tirages sont strictement positifs.
-Si `s = 0`, le résultat est le vecteur constant positif `m`.
+Les tirages sont strictement positifs. `s = 0` produit une série constante égale à `m`.
 
 ### Risque événementiel
 
-Un risque événementiel associe une probabilité finie `p ∈ [0, 1]` à un impact fini `I` :
+Avec une probabilité `p` et un impact `I` :
 
 ```text
-X = I avec la probabilité p
-X = 0 avec la probabilité 1 - p
+X = I avec probabilité p
+X = 0 avec probabilité 1 - p
 E[X] = p × I
 Var[X] = p × (1 - p) × I²
 ```
 
-Un impact positif peut représenter une menace et un impact négatif une opportunité. `p = 0`,
-`p = 1` et `I = 0` sont traités comme des cas déterministes sans consommer l'état du générateur.
+Un impact négatif peut représenter une opportunité. `p = 0`, `p = 1` et `I = 0` sont traités comme cas déterministes.
 
-## Noms et alias
+## 4. Noms et alias
 
-Les noms canoniques sont `triangular`, `pert`, `uniform`, `normal`, `lognormal` et `event`. La casse
-et les espaces externes sont ignorés. Les alias pris en charge sont :
+Noms canoniques : `triangular`, `pert`, `uniform`, `normal`, `lognormal`, `event`.
 
-- `beta-pert`, `beta_pert`, `beta pert` pour `pert` ;
-- `log-normal`, `log_normal`, `log normal` pour `lognormal` ;
-- `event-based`, `event_based`, `event based`, `eventual`, `bernoulli`, `bernoulli-event` et
-  `bernoulli_event` pour `event`.
+Alias pris en charge :
 
-Les noms des postes sont nettoyés de leurs espaces externes et doivent être uniques sans tenir
-compte de la casse.
+- `beta-pert`, `beta_pert`, `beta pert` → `pert` ;
+- `log-normal`, `log_normal`, `log normal` → `lognormal` ;
+- `event-based`, `event_based`, `event based`, `eventual`, `bernoulli`, `bernoulli-event`, `bernoulli_event` → `event`.
 
-## Agrégation
+La casse et les espaces externes sont ignorés. Les noms de postes doivent rester uniques après nettoyage, sans tenir compte de la casse.
 
-Chaque poste est simulé sous forme d'un vecteur NumPy complet. Les vecteurs sont additionnés ligne
-par ligne pour produire la distribution du coût ou du délai total. Aucune boucle Python ne porte
-sur les tirages individuels ; la seule boucle du moteur porte sur les postes du registre.
+## 5. Registre Excel et unités
 
-## Percentiles
+Le schéma `1.0` constitue une frontière d'entrée versionnée. Une ligne active validée devient un `RiskItem`. Les lignes désactivées sont ignorées avant la validation de leurs paramètres.
 
-Les percentiles donnent les seuils sous lesquels se trouve la proportion correspondante des
-résultats simulés. La configuration accepte un tuple non vide de niveaux finis strictement compris
-entre 0 et 1. Le libellé conserve les décimales significatives : `0.50` devient `P50`, `0.951`
-devient `P95.1` et `0.995` devient `P99.5`. Les niveaux dupliqués et toute collision de libellé
-résiduelle sont refusés ; aucun quantile n'en écrase un autre dans le résumé.
+Toutes les unités actives doivent correspondre à `default_unit` sans tenir compte de la casse. Le moteur n'effectue aucune conversion de devise ou d'unité de temps.
 
-## Registre Excel et baseline
+`baseline_estimate` est une référence optionnelle. Elle n'entre jamais dans l'agrégation du total. Un montant déterministe appartenant réellement au total doit être représenté par un poste explicite.
 
-Le schéma Excel `1.0` est une frontière d'entrée, pas une nouvelle méthode probabiliste. Une ligne
-active validée devient exactement un `RiskItem`. Les lignes désactivées sont ignorées avant la
-validation de leurs paramètres. Toutes les unités actives doivent correspondre à `default_unit`
-(comparaison sans tenir compte de la casse) ; aucune conversion monétaire ou temporelle n'est
-effectuée.
+## 6. Corrélations et copule gaussienne
 
-`baseline_estimate` est une référence finie facultative pour comparer les résultats à une
-estimation de départ. Elle n'entre pas dans l'équation d'agrégation et n'est jamais ajoutée
-implicitement. Si la baseline doit faire partie du total, elle doit être représentée par un poste
-déterministe explicite. Cette décision évite une double comptabilisation silencieuse.
+La feuille `correlations` optionnelle définit la dépendance entre les postes actifs. Les lignes et colonnes sont alignées par nom avant construction de `CorrelationMatrix`.
 
-Lorsqu'elle est fournie, le rapport de comparaison calcule la probabilité empirique stricte
-`P(total > baseline)`. Une valeur égale à la baseline n'est donc pas un dépassement. Les écarts
-aux P50, P80 et P90 valent `percentile - baseline`, et les réserves correspondantes sont planchées
-à zéro avec `max(écart, 0)`. Les écarts relatifs ne sont définis que pour une baseline strictement
-positive ; ils sont exportés comme valeurs manquantes pour une baseline nulle ou négative.
+La matrice doit être :
 
-## Corrélations
+- carrée ;
+- finie ;
+- symétrique ;
+- bornée dans `[-1, 1]` ;
+- de diagonale unitaire ;
+- strictement définie positive.
 
-Une feuille Excel `correlations` optionnelle définit une matrice par noms de postes actifs. Les lignes et colonnes peuvent être dans des ordres différents : elles sont validées séparément puis réordonnées avant la construction de `CorrelationMatrix`. La simulation corrélée utilise une copule gaussienne, une décomposition de Cholesky et les fonctions quantiles (`ppf`) des six distributions.
+La simulation corrélée utilise une copule gaussienne : normales multivariées corrélées via Cholesky, transformation vers des probabilités uniformes, puis fonctions quantiles des distributions marginales.
 
-## Value at Risk
+La politique est **strict-no-repair**. Une matrice invalide est rejetée avec diagnostic ; aucune projection, troncature ou perturbation silencieuse n'est appliquée. Un run corrélé valide produit `correlation_diagnostics.csv` et indique `automatic_repair_applied = False`.
 
-Dans ce projet, la VaR au niveau de confiance `q` correspond au quantile `q` de la distribution
-simulée. Elle représente donc un coût au percentile choisi, pas une dérive par rapport à un budget
-de référence.
+## 7. Percentiles et Value at Risk
 
-## Loi des grands nombres
+Pour un niveau `q` strictement compris entre 0 et 1, le percentile est le quantile empirique du total.
 
-Quand le nombre de tirages augmente, les estimations empiriques des quantiles et des moments se
-stabilisent. Le projet ne fournit pas encore de diagnostic automatique de convergence.
+Les libellés conservent les décimales significatives :
 
-## Fonctionnalités hors périmètre actuel
+- `0.50` → `P50` ;
+- `0.951` → `P95.1` ;
+- `0.995` → `P99.5`.
 
-La courbe en S, la convergence automatique, la comparaison de scénarios et les exports PDF ou
-PowerPoint ne sont pas implémentés. L'import Excel versionné, la comparaison à la baseline,
-l'analyse de sensibilité et le diagramme de tornade sont opérationnels via le workflow Excel.
+Les niveaux dupliqués sont rejetés. Dans ce projet, la VaR au niveau `q` correspond directement au quantile `q` de la distribution du total ; elle ne représente pas automatiquement un écart à la baseline.
 
-## Sensitivity methodology: Spearman rank correlation
+## 8. Baseline, dépassement et réserve
 
-For each risk item, the V1 sensitivity analysis computes Spearman's rho between that item's
-simulated samples and the simulated total. Spearman is a rank-based monotonic association
-measure in `[-1, 1]`; unlike Pearson correlation, it does not assume a linear relationship
-or normal marginals, so it is appropriate for triangular, PERT, uniform, normal,
-log-normal and event distributions, including ties from Bernoulli-style events.
+Lorsqu'une baseline finie est fournie :
 
-Deterministic item columns are constant and therefore undefined for Spearman correlation.
-They are explicitly flagged as `constant_input` instead of being assigned zero. Defined
-items are ranked by `abs(rho)` with deterministic tie-breaking by the original item order.
-Positive rho means larger item samples tend to accompany larger totals; negative rho means
-larger item samples tend to accompany smaller totals; values close to zero indicate weak
-monotone association.
+```text
+exceedance_probability = mean(total > baseline)
+gap(Px)                = Px - baseline
+reserve(Px)            = max(gap(Px), 0)
+```
 
-With correlated inputs, Spearman coefficients remain descriptive associations with the
-total. They are not causal effects, not an additive variance decomposition, and their
-absolute values are not normalized to 100 %. Correlated items can share apparent importance,
-so the ranking should be used as a decision aid rather than proof of isolated causality.
+L'égalité avec la baseline n'est pas comptée comme dépassement. Les écarts relatifs ne sont définis que pour une baseline strictement positive.
+
+## 9. S-curve
+
+La S-curve est la fonction de répartition empirique du total. Après tri croissant des échantillons, chaque valeur est associée à sa probabilité cumulée empirique.
+
+Elle permet de lire :
+
+- `P(total <= budget)` pour un budget donné ;
+- le budget correspondant à un niveau de confiance donné.
+
+Le workflow exporte une version statique, tandis que Streamlit construit une version interactive à partir des mêmes échantillons.
+
+## 10. Sensibilité de Spearman
+
+Pour chaque poste, le moteur calcule la corrélation de rang de Spearman entre les tirages du poste et le total simulé.
+
+Spearman est choisi parce qu'il mesure une association monotone sans supposer de relation linéaire ou de marges normales. Il convient aux distributions asymétriques et aux événements contenant des ex æquo.
+
+Les postes déterministes sont constants ; leur coefficient est mathématiquement indéfini. Ils sont signalés avec `undefined_reason = constant_input` plutôt que forcés à zéro.
+
+Les postes définis sont classés par `abs(rho)`. Le signe conserve la direction de l'association.
+
+Avec des entrées corrélées :
+
+- `rho` reste descriptif ;
+- il ne mesure pas une causalité ;
+- il ne constitue pas une décomposition additive de variance ;
+- ses valeurs absolues ne doivent pas être normalisées pour sommer à 100 %.
+
+## 11. Convergence automatique
+
+Le diagnostic de convergence suit un percentile cible sur des blocs cumulés d'échantillons.
+
+Pour chaque bloc, il calcule :
+
+- le nombre cumulé de tirages ;
+- l'estimation du percentile ;
+- la variation absolue ;
+- la variation relative par rapport aux deux estimations successives ;
+- si la variation respecte la tolérance ;
+- le nombre de blocs stables consécutifs ;
+- un unique indicateur `stop_recommended` lorsque les critères sont atteints.
+
+Le service choisit un `block_size` au plus égal à 1 000 et suit le plus haut niveau de confiance configuré.
+
+La convergence mesure la stabilité numérique de l'estimateur. Elle ne valide ni la distribution choisie, ni les bornes, ni les corrélations.
+
+## 12. Restitution et interface
+
+Le cœur métier est indépendant de Streamlit. L'interface appelle `run_simulation_from_excel` puis transforme les échantillons et artefacts en vues Plotly interactives.
+
+Cette séparation garantit que la CLI et l'interface utilisent le même moteur et les mêmes règles de validation.
+
+Le niveau de décision affiché dans Streamlit peut être P50, P80, P90 ou P95. Les cartes de décision recalculent directement le quantile, la probabilité de dépassement et la réserve à partir des échantillons du run.
+
+## 13. Validation métier
+
+Les tests automatisés vérifient les invariants logiciels et numériques. La crédibilité des hypothèses nécessite une validation terrain séparée.
+
+Le protocole `docs/consultant_validation_workshop.md` demande notamment de documenter :
+
+- les paramètres contestés ;
+- la justification des corrélations non nulles ;
+- la baseline retenue ;
+- le niveau de confiance utile ;
+- la cohérence du tornado avec l'expérience métier ;
+- les actions, responsables et échéances.
+
+Le cas synthétique du dépôt valide le chemin logiciel mais ne remplace pas cette validation métier.
+
+## 14. Fonctionnalités hors périmètre S4
+
+Les extensions prévues après la semaine 4 sont principalement :
+
+- mode what-if interactif ;
+- comparaison de scénarios ;
+- exports PDF ou PowerPoint décisionnels ;
+- calibration empirique sur historique autorisé ;
+- éventuelle modélisation conjointe coût × délai.

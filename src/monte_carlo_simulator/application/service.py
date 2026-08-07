@@ -103,6 +103,8 @@ def run_simulation_from_excel(
     file_path: str | Path,
     config: SimulationConfig | None = None,
     output_dir: str | Path | None = None,
+    *,
+    convergence_confidence_level: float | None = None,
 ) -> ExcelSimulationRun:
     """Validate an Excel risk register, simulate it and persist its artifacts."""
     register = load_risk_register(file_path)
@@ -156,10 +158,15 @@ def run_simulation_from_excel(
     )
     export_percentile_table_to_csv(percentile_table, percentile_table_path)
 
+    convergence_level = (
+        convergence_confidence_level
+        if convergence_confidence_level is not None
+        else max(simulation_config.confidence_levels)
+    )
     block_size = max(1, min(1_000, simulation_config.number_of_simulations // 10))
     convergence = compute_convergence_diagnostics(
         result.samples,
-        confidence_level=max(simulation_config.confidence_levels),
+        confidence_level=convergence_level,
         block_size=block_size,
     )
     export_convergence_to_csv(convergence, convergence_path)
