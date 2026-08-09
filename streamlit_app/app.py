@@ -41,12 +41,16 @@ st.markdown(
           rgba(247,250,247,.52), rgba(224,237,231,.58)
         );
         --mc-chrome: rgba(255,255,255,.12);
-        --mc-surface: color-mix(in srgb, var(--secondary-background-color, #f0f2f6) 82%, transparent);
+        --mc-surface: color-mix(
+          in srgb, var(--secondary-background-color, #f0f2f6) 82%, transparent
+        );
         --mc-border: color-mix(in srgb, var(--text-color, #31333f) 24%, transparent);
         --mc-muted: color-mix(in srgb, var(--text-color, #31333f) 68%, transparent);
       }
       [data-theme="dark"] {
-        --mc-surface: color-mix(in srgb, var(--secondary-background-color, #262730) 78%, transparent);
+        --mc-surface: color-mix(
+          in srgb, var(--secondary-background-color, #262730) 78%, transparent
+        );
       }
       :root[data-mc-theme="dark"] {
         --mc-background-veil: linear-gradient(135deg,
@@ -184,7 +188,8 @@ st.markdown(
       }
       .hero p { max-width: 760px; margin: 0; color: var(--mc-muted); }
       h1, h2, h3, label, p, li,
-      [data-testid="stMarkdownContainer"], [data-testid="stWidgetLabel"] { color: var(--text-color); }
+      [data-testid="stMarkdownContainer"],
+      [data-testid="stWidgetLabel"] { color: var(--text-color); }
       [data-testid="stCaptionContainer"], [data-testid="stMetricLabel"],
       [data-testid="stMetricDelta"] { color: var(--mc-muted); }
       [data-baseweb="input"] > div, [data-baseweb="select"] > div,
