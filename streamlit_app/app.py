@@ -291,6 +291,7 @@ st.html(
     unsafe_allow_javascript=True,
 )
 
+
 def _format_value(value: float | None, unit: str) -> str:
     if value is None:
         return "—"
