@@ -32,42 +32,263 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+
 st.markdown(
     """
     <style>
-      :root { --ink:#102238; --paper:#f6f1e7; --acid:#d8ff57; --copper:#d96a32; }
-      .stApp {
-        background:
-          radial-gradient(circle at 88% 2%, rgba(216,255,87,.18), transparent 24rem),
-          linear-gradient(180deg, #fbfaf6 0%, var(--paper) 100%);
+      :root {
+        --mc-background-veil: linear-gradient(
+          rgba(247,250,247,.52), rgba(224,237,231,.58)
+        );
+        --mc-chrome: rgba(255,255,255,.12);
+        --mc-surface: color-mix(
+          in srgb, var(--secondary-background-color, #f0f2f6) 82%, transparent
+        );
+        --mc-border: color-mix(in srgb, var(--text-color, #31333f) 24%, transparent);
+        --mc-muted: color-mix(in srgb, var(--text-color, #31333f) 68%, transparent);
       }
-      [data-testid="stSidebar"] { background:var(--ink); }
-      [data-testid="stSidebar"] * { color:#f7f4ec; }
+      [data-theme="dark"] {
+        --mc-surface: color-mix(
+          in srgb, var(--secondary-background-color, #262730) 78%, transparent
+        );
+      }
+      :root[data-mc-theme="dark"] {
+        --mc-background-veil: linear-gradient(135deg,
+          rgba(3,13,8,.78) 0%, rgba(5,14,9,.80) 50%, rgba(3,10,6,.82) 100%
+        );
+        --mc-chrome: rgba(14,24,18,.18);
+      }
+      :root[data-mc-theme="dark"] .hero,
+      :root[data-mc-theme="dark"] .hero small,
+      :root[data-mc-theme="dark"] .hero h1,
+      :root[data-mc-theme="dark"] .hero p,
+      :root[data-mc-theme="dark"] .st-key-run-metadata,
+      :root[data-mc-theme="dark"] .st-key-run-metadata * {
+        color: #ffffff !important;
+      }
+      :root[data-mc-theme="dark"] .hero small {
+        color: #ff9f5a !important;
+      }
+      :root[data-mc-theme="dark"] .st-key-method-content,
+      :root[data-mc-theme="dark"] .st-key-method-content * {
+        color: #ffffff !important;
+      }
+      :root[data-mc-theme="dark"] [data-testid="stHeader"],
+      :root[data-mc-theme="dark"] [data-testid="stHeader"] * {
+        color: #ffffff !important;
+      }
+      :root[data-mc-theme="dark"] [data-testid="stHeader"] svg {
+        color: #ffffff !important;
+      }
+      :root[data-mc-theme="dark"] [data-testid="stSidebar"] [data-testid="stCaptionContainer"],
+      :root[data-mc-theme="dark"] [data-testid="stSidebar"] [data-testid="stCaptionContainer"] * {
+        color: rgba(255,255,255,.72) !important;
+      }
+      :root[data-mc-theme="dark"] [data-testid="stFileUploaderDropzone"] {
+        background: rgba(2,5,4,.94) !important;
+        border-color: rgba(93,202,165,.28) !important;
+      }
+      :root[data-mc-theme="dark"] [data-testid="stFileUploaderDropzone"] *,
+      :root[data-mc-theme="dark"] [data-testid="stFileUploaderDropzoneInstructions"] * {
+        color: #ffffff !important;
+      }
+      :root[data-mc-theme="dark"] [data-testid="stFileUploaderDropzone"] small {
+        color: rgba(255,255,255,.68) !important;
+      }
+      :root[data-mc-theme="dark"] [data-testid="stFileUploaderDropzone"] button {
+        background: rgba(255,255,255,.08) !important;
+        border-color: rgba(255,255,255,.22) !important;
+        color: #ffffff !important;
+      }
+      :root[data-mc-theme="dark"] [data-testid="stFileUploaderFile"] {
+        background: rgba(24,55,42,.94) !important;
+        border: 1px solid rgba(93,202,165,.30) !important;
+        border-radius: .55rem;
+        padding: .5rem .65rem;
+      }
+      :root[data-mc-theme="dark"] [data-testid="stFileUploaderFile"],
+      :root[data-mc-theme="dark"] [data-testid="stFileUploaderFile"] * {
+        color: #ffffff !important;
+      }
+      :root[data-mc-theme="dark"] [data-testid="stFileUploaderFile"] small {
+        color: rgba(255,255,255,.70) !important;
+      }
+      :root[data-mc-theme="dark"] [data-testid="stMain"] .stDownloadButton button {
+        background: rgba(0,0,0,.88) !important;
+        border-color: rgba(255,255,255,.18) !important;
+      }
+      :root[data-mc-theme="dark"] [data-testid="stMain"] .stDownloadButton button,
+      :root[data-mc-theme="dark"] [data-testid="stMain"] .stDownloadButton button * {
+        color: #ffffff !important;
+      }
+      :root[data-mc-theme="dark"] [data-testid="stMain"] .stDownloadButton button:hover {
+        background: #000000 !important;
+        border-color: rgba(255,255,255,.32) !important;
+      }
+      .stApp, [data-testid="stAppViewContainer"] {
+        background-color: transparent !important;
+        background-image: var(--mc-background-veil),
+          url("app/static/monte-carlo.png") !important;
+        background-position: center !important;
+        background-size: cover !important;
+        background-repeat: no-repeat !important;
+        background-attachment: fixed !important;
+        color: var(--text-color, #31333f);
+      }
+      [data-testid="stMain"], [data-testid="stMainBlockContainer"] {
+        background: transparent !important;
+      }
+      [data-testid="stHeader"], [data-testid="stSidebar"] {
+        background: var(--mc-chrome) !important;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+      }
+      [data-testid="stSidebar"] {
+        border-right: 1px solid var(--mc-border);
+      }
+      [data-testid="stSidebar"] > div:first-child,
+      [data-testid="stSidebarContent"],
+      [data-testid="stSidebarUserContent"] {
+        background: transparent !important;
+      }
+      [data-testid="stSidebar"] * { color: var(--text-color); }
       [data-testid="stSidebar"] .stButton button {
-        background:var(--acid); color:var(--ink); border:0; font-weight:800;
+        background: #ffd8bd;
+        border-color: #e99a66;
+        font-weight: 700;
+      }
+      [data-testid="stSidebar"] .stButton button,
+      [data-testid="stSidebar"] .stButton button * { color: #50230b !important; }
+      [data-testid="stSidebar"] .stButton button:hover {
+        background: #ffc79f;
+        border-color: #dc7d40;
+      }
+      [data-testid="stSidebar"] .stDownloadButton button {
+        background: #d8f3df;
+        border-color: #79bc8a;
+        font-weight: 700;
+      }
+      [data-testid="stSidebar"] .stDownloadButton button,
+      [data-testid="stSidebar"] .stDownloadButton button * { color: #123d20 !important; }
+      [data-testid="stSidebar"] .stDownloadButton button:hover {
+        background: #c4ebce;
+        border-color: #58a96e;
       }
       .hero {
-        border-top:9px solid var(--ink); border-bottom:1px solid rgba(16,34,56,.16);
-        padding:1.1rem 0 1.25rem; margin-bottom:1rem;
+        border-top: 7px solid var(--primary-color); border-bottom: 1px solid var(--mc-border);
+        padding: 1.1rem 0 1.25rem; margin-bottom: 1rem;
       }
       .hero small {
-        color:var(--copper); font-weight:800; letter-spacing:.15em; text-transform:uppercase;
+        color: #e97832; font-weight: 800; letter-spacing: .15em;
+        text-transform: uppercase;
       }
       .hero h1 {
-        max-width:920px; margin:.35rem 0; color:var(--ink);
-        font-size:clamp(2.2rem,5vw,4.8rem); line-height:.96; letter-spacing:-.055em;
+        max-width: 920px; margin: .35rem 0; color: var(--text-color);
+        font-size: clamp(1.9rem,4vw,3.8rem); line-height: .96; letter-spacing: -.055em;
       }
-      .hero p { max-width:760px; margin:0; color:#495666; }
+      .hero p { max-width: 760px; margin: 0; color: var(--mc-muted); }
+      h1, h2, h3, label, p, li,
+      [data-testid="stMarkdownContainer"],
+      [data-testid="stWidgetLabel"] { color: var(--text-color); }
+      [data-testid="stCaptionContainer"], [data-testid="stMetricLabel"],
+      [data-testid="stMetricDelta"] { color: var(--mc-muted); }
+      [data-baseweb="input"] > div, [data-baseweb="select"] > div,
+      [data-testid="stFileUploaderDropzone"], [data-testid="stDataFrame"],
+      [data-testid="stAlert"], [data-testid="stExpander"],
+      [data-testid="stPlotlyChart"] {
+        background: var(--mc-surface);
+        border: 1px solid var(--mc-border) !important;
+        border-radius: .5rem;
+      }
+      [data-testid="stPlotlyChart"] {
+        border-radius: 1rem;
+        overflow: hidden;
+        clip-path: inset(0 round 1rem);
+      }
+      [data-testid="stPlotlyChart"] .js-plotly-plot,
+      [data-testid="stPlotlyChart"] .plot-container,
+      [data-testid="stPlotlyChart"] .svg-container {
+        border-radius: inherit;
+      }
+      .stButton button, .stDownloadButton button {
+        border: 1px solid var(--mc-border);
+      }
+      [data-baseweb="tab-list"] {
+        border-bottom: 1px solid var(--mc-border);
+      }
+      [data-baseweb="tab"] { color: var(--mc-muted); }
+      [data-baseweb="tab"][aria-selected="true"] {
+        color: var(--text-color); border-bottom-color: var(--primary-color);
+      }
       div[data-testid="stMetric"] {
-        background:rgba(255,255,255,.7); border:1px solid rgba(16,34,56,.16);
-        border-radius:2px; padding:.7rem .85rem;
+        background: var(--mc-surface); border: 1px solid var(--mc-border);
+        border-radius: .45rem; padding: .7rem .85rem;
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        min-width: 0;
+        overflow: visible;
+      }
+      [data-testid="stMetricValue"],
+      [data-testid="stMetricValue"] > div {
+        max-width: none !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        white-space: nowrap !important;
+      }
+      [data-testid="stMetricValue"] {
+        font-size: clamp(1.15rem, 1.8vw, 1.75rem) !important;
+        letter-spacing: -.025em;
       }
       .note {
-        border-left:4px solid var(--copper); padding:.2rem 0 .2rem .85rem; color:#566170;
+        border-left: 4px solid var(--primary-color); padding: .2rem 0 .2rem .85rem;
+        color: var(--mc-muted);
       }
     </style>
     """,
     unsafe_allow_html=True,
+)
+
+st.html(
+    """
+    <script>
+      (() => {
+        if (window.__mcThemeSync) window.__mcThemeSync.dispose();
+
+        const channel = value => {
+          const parts = value.match(/[0-9.]+/g);
+          if (!parts || parts.length < 3) return null;
+          return parts.slice(0, 3).map(Number);
+        };
+        const luminance = rgb => {
+          const linear = rgb.map(value => {
+            const normalized = value / 255;
+            return normalized <= .04045
+              ? normalized / 12.92
+              : Math.pow((normalized + .055) / 1.055, 2.4);
+          });
+          return .2126 * linear[0] + .7152 * linear[1] + .0722 * linear[2];
+        };
+        const sync = () => {
+          const rgb = channel(getComputedStyle(document.body).color);
+          if (!rgb) return;
+          const theme = luminance(rgb) > .5 ? "dark" : "light";
+          if (document.documentElement.dataset.mcTheme !== theme) {
+            document.documentElement.dataset.mcTheme = theme;
+          }
+        };
+        const observer = new MutationObserver(() => requestAnimationFrame(sync));
+        observer.observe(document.body, { attributes: true, childList: true, subtree: true });
+        const interval = window.setInterval(sync, 500);
+        window.__mcThemeSync = {
+          dispose: () => {
+            observer.disconnect();
+            window.clearInterval(interval);
+          }
+        };
+        sync();
+      })();
+    </script>
+    """,
+    unsafe_allow_javascript=True,
 )
 
 
@@ -287,7 +508,7 @@ with st.sidebar:
             step=1_000,
         )
     )
-    seed = int(st.number_input("Seed", min_value=0, value=42, step=1))
+    seed = int(st.number_input("Graîne (seed)", min_value=0, value=42, step=1))
     confidence_pct = int(
         st.select_slider(
             "Niveau de décision",
@@ -373,11 +594,12 @@ baseline = metadata["baseline"]
 selected_level = payload["confidence_pct"] / 100.0
 snapshot = build_decision_snapshot(samples, selected_level, baseline)
 
-st.caption(
-    f"{metadata['project_name']} · {metadata['analysis_type']} · {unit} · "
-    f"{payload['simulations']:,} tirages · seed {payload['seed']} · "
-    f"schéma {metadata['schema_version']}"
-)
+with st.container(key="run-metadata"):
+    st.caption(
+        f"{metadata['project_name']} · {metadata['analysis_type']} · {unit} · "
+        f"{payload['simulations']:,} tirages · seed {payload['seed']} · "
+        f"schéma {metadata['schema_version']}"
+    )
 
 columns = st.columns([1.15, 1, 1, 1])
 columns[0].metric(
@@ -492,20 +714,21 @@ with exports_tab:
         )
 
 with method_tab:
-    st.markdown(
-        """
-        **P50 / P80 / P90 / P95** — valeur non dépassée dans environ 50 %, 80 %, 90 % ou
-        95 % des tirages du modèle.
+    with st.container(key="method-content"):
+        st.markdown(
+            """
+            **P50 / P80 / P90 / P95** — valeur non dépassée dans environ 50 %, 80 %, 90 % ou
+            95 % des tirages du modèle.
 
-        **Probabilité de dépassement** — fréquence stricte où le total simulé est supérieur
-        à la baseline du classeur.
+            **Probabilité de dépassement** — fréquence stricte où le total simulé est supérieur
+            à la baseline du classeur.
 
-        **Réserve** — `max(Px - baseline, 0)`. La baseline reste une référence externe.
+            **Réserve** — `max(Px - baseline, 0)`. La baseline reste une référence externe.
 
-        **Tornado Spearman** — outil de priorisation des postes associés aux variations du
-        total, pas preuve de causalité.
+            **Tornado Spearman** — outil de priorisation des postes associés aux variations du
+            total, pas preuve de causalité.
 
-        **Convergence** — stabilité cumulative du percentile sélectionné. Elle renseigne sur
-        le nombre de tirages, pas sur la qualité des hypothèses métier.
-        """
-    )
+            **Convergence** — stabilité cumulative du percentile sélectionné. Elle renseigne sur
+            le nombre de tirages, pas sur la qualité des hypothèses métier.
+            """
+        )
