@@ -8,7 +8,7 @@ from .excel_reader import (
     load_risk_register_excel,
     load_workbook,
 )
-from .excel_template import create_risk_register_template
+from .excel_template import create_risk_register_template, create_risk_register_workbook
 from .exporters import (
     export_baseline_comparison_to_csv,
     export_convergence_to_csv,
@@ -21,6 +21,7 @@ from .exporters import (
 __all__ = [
     "dataframe_to_risk_items",
     "create_risk_register_template",
+    "create_risk_register_workbook",
     "export_baseline_comparison_to_csv",
     "export_convergence_to_csv",
     "export_correlation_diagnostics_to_csv",
