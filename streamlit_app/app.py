@@ -14,6 +14,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from monte_carlo_simulator.application.hypotheses import load_editable_risk_register
 from monte_carlo_simulator.application.presentation import (
     build_confidence_levels,
     build_decision_snapshot,
@@ -786,7 +787,22 @@ def _histogram(
     unit: str,
     level: float,
 ) -> go.Figure:
-    figure = go.Figure(go.Histogram(x=samples, nbinsx=70, name="Tirages"))
+    counts, edges = np.histogram(samples, bins=70)
+    centers = (edges[:-1] + edges[1:]) / 2
+    intervals = np.column_stack((edges[:-1], edges[1:]))
+    figure = go.Figure(
+        go.Bar(
+            x=centers,
+            y=counts,
+            width=np.diff(edges),
+            customdata=intervals,
+            hovertemplate=(
+                "Intervalle : %{customdata[0]:,.2f} – %{customdata[1]:,.2f}<br>"
+                "Simulations : %{y:,}<extra></extra>"
+            ),
+            name="Tirages",
+        )
+    )
     for marker_level in sorted({0.50, 0.80, 0.90, level}):
         figure.add_vline(
             x=float(np.quantile(samples, marker_level)),
@@ -814,8 +830,17 @@ def _s_curve(
 ) -> go.Figure:
     ordered = np.sort(samples)
     cumulative = np.arange(1, ordered.size + 1, dtype=float) / ordered.size
+    # Keep the browser fluid for very large runs while retaining both endpoints.
+    indices = np.unique(np.linspace(0, ordered.size - 1, min(5_000, ordered.size), dtype=int))
     value = float(np.quantile(samples, level))
-    figure = go.Figure(go.Scatter(x=ordered, y=cumulative, mode="lines"))
+    figure = go.Figure(
+        go.Scatter(
+            x=ordered[indices],
+            y=cumulative[indices],
+            mode="lines",
+            hovertemplate="Coût : %{x:,.2f}<br>Probabilité cumulée : %{y:.2%}<extra></extra>",
+        )
+    )
     figure.add_hline(y=level, line_dash="dash")
     figure.add_vline(x=value, line_dash="dash", annotation_text=f"P{level * 100:g}")
     if baseline is not None:
@@ -977,6 +1002,17 @@ def _create_configured_workbook(
         return output_path.read_bytes(), file_name
 
 
+def _load_editable_workbook(file_bytes: bytes, file_name: str) -> tuple[Any, pd.DataFrame]:
+    """Load uploaded Excel bytes through the validated application adapter."""
+    safe_name = Path(file_name).name or "risk_register.xlsx"
+    with tempfile.TemporaryDirectory(prefix="monte-carlo-import-") as temp_dir:
+        path = Path(temp_dir) / safe_name
+        path.write_bytes(file_bytes)
+        editable = load_editable_risk_register(path)
+    rows = editable.rows.reindex(columns=RISK_COLUMNS)
+    return editable.metadata, rows
+
+
 def _display_validation_error(exc: RiskRegisterValidationError) -> None:
     st.error(f"Le registre contient {len(exc.issues)} erreur(s) de validation.")
     st.dataframe(
@@ -1024,13 +1060,51 @@ def _render_hypothesis_configuration() -> None:
         "Définissez le projet et ses postes de risque, puis générez un registre Excel "
         "directement compatible avec la plateforme.",
     )
+    uploaded = st.file_uploader(
+        "Importer des hypothèses Excel pour les modifier",
+        type=["xlsx"],
+        key="hypothesis-import",
+        help=(
+            "Le fichier est validé puis converti en modèle éditable ; "
+            "la simulation utilisera vos corrections."
+        ),
+    )
+    if st.button("Charger dans l’éditeur", disabled=uploaded is None, width="stretch"):
+        try:
+            metadata, imported_rows = _load_editable_workbook(uploaded.getvalue(), uploaded.name)
+            st.session_state.update(
+                hypothesis_rows=imported_rows,
+                initial_hypothesis_rows=imported_rows.copy(deep=True),
+                hypothesis_editor_revision=(
+                    st.session_state.get("hypothesis_editor_revision", 0) + 1
+                ),
+                hypothesis_project_name=metadata.project_name,
+                hypothesis_analysis="Coûts" if metadata.analysis_type == "cost" else "Durées",
+                hypothesis_unit=metadata.default_unit,
+                hypothesis_baseline_enabled=metadata.baseline_estimate is not None,
+                hypothesis_baseline=float(metadata.baseline_estimate or 0.0),
+                hypothesis_description=metadata.description or "",
+            )
+            st.success(f"{len(imported_rows)} poste(s) importé(s) dans l’éditeur.")
+            st.rerun()
+        except RiskRegisterValidationError as exc:
+            _display_validation_error(exc)
+        except ValidationError as exc:
+            st.error(str(exc))
+
     with st.container(key="hypothesis-metadata"):
         st.subheader("Informations du projet")
         left, middle, right = st.columns([1.45, 1, 1])
-        project_name = left.text_input("Nom du projet", value="Nouveau projet")
-        analysis_label = middle.selectbox("Type d'analyse", ("Coûts", "Durées"))
-        default_unit = right.text_input("Unité commune", value="MAD")
-        baseline_enabled = st.checkbox("Renseigner une baseline", value=True)
+        project_name = left.text_input(
+            "Nom du projet", value="Nouveau projet", key="hypothesis_project_name"
+        )
+        analysis_label = middle.selectbox(
+            "Type d'analyse", ("Coûts", "Durées"), key="hypothesis_analysis"
+        )
+        default_unit = right.text_input("Unité commune", value="MAD", key="hypothesis_unit")
+        baseline_enabled = st.checkbox(
+            "Renseigner une baseline", value=True, key="hypothesis_baseline_enabled"
+        )
         baseline_estimate = (
             float(
                 st.number_input(
@@ -1038,6 +1112,7 @@ def _render_hypothesis_configuration() -> None:
                     min_value=0.0,
                     value=250_000.0,
                     step=10_000.0,
+                    key="hypothesis_baseline",
                 )
             )
             if baseline_enabled
@@ -1046,6 +1121,7 @@ def _render_hypothesis_configuration() -> None:
         description = st.text_area(
             "Description",
             placeholder="Contexte non confidentiel et sources des hypothèses.",
+            key="hypothesis_description",
         )
 
     st.write("")
@@ -1059,7 +1135,7 @@ def _render_hypothesis_configuration() -> None:
             st.session_state["hypothesis_rows"] = _default_hypotheses()
         hypotheses = st.data_editor(
             st.session_state["hypothesis_rows"],
-            key="hypothesis_editor",
+            key=f"hypothesis_editor_{st.session_state.get('hypothesis_editor_revision', 0)}",
             num_rows="dynamic",
             hide_index=True,
             use_container_width=True,
@@ -1091,6 +1167,17 @@ def _render_hypothesis_configuration() -> None:
             },
         )
         st.session_state["hypothesis_rows"] = hypotheses
+
+        if "initial_hypothesis_rows" not in st.session_state:
+            st.session_state["initial_hypothesis_rows"] = hypotheses.copy(deep=True)
+        if st.button("Réinitialiser les hypothèses", key="reset-hypotheses"):
+            st.session_state["hypothesis_rows"] = st.session_state["initial_hypothesis_rows"].copy(
+                deep=True
+            )
+            st.session_state["hypothesis_editor_revision"] = (
+                st.session_state.get("hypothesis_editor_revision", 0) + 1
+            )
+            st.rerun()
 
     validate_column, use_column = st.columns(2)
     validate_clicked = validate_column.button(
