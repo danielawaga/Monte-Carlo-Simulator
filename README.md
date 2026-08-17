@@ -2,11 +2,17 @@
 
 Python application for probabilistic project cost and schedule risk analysis. The project turns an Excel risk register into a simulated total distribution, decision percentiles, baseline reserves, correlation diagnostics, convergence evidence and sensitivity outputs.
 
-## Current status — S4 usability
+## Current status — S5 interface & what-if workflow
 
-The repository now contains a complete consultant-facing Streamlit workflow in addition to the CLI and Python application service.
+The repository now combines three layers:
 
-Available features:
+- a tested Python Monte Carlo engine and application service;
+- the operational Streamlit interface used to import, edit and simulate risk assumptions;
+- a React + TypeScript + Vite interface under `web/`, structured around Configuration, Results and Scenario Comparison views.
+
+The S5 work focuses on making the simulator easier to explore and use interactively without moving probabilistic logic out of Python.
+
+### Available features
 
 - vectorized and reproducible Monte Carlo simulation with NumPy;
 - six distributions: triangular, Beta-PERT, uniform, normal, arithmetic-parameterized log-normal and Bernoulli × impact event risk;
@@ -18,7 +24,10 @@ Available features:
 - baseline exceedance probability and non-negative percentile reserves;
 - Spearman sensitivity and tornado chart;
 - cumulative percentile convergence diagnostics;
-- interactive Streamlit upload, simulation, Plotly charts, confidence selector and downloadable artifact bundle;
+- interactive Plotly visualizations with exact values on hover;
+- editable assumptions after Excel import in the Streamlit workflow;
+- reset/re-run workflow for lightweight what-if analysis;
+- React/TypeScript/Vite frontend with dedicated Configuration, Results and Scenario Comparison screens;
 - reproducible synthetic acceptance case and consultant-validation protocol;
 - user, methodology, handover and restitution documentation.
 
@@ -26,41 +35,61 @@ Available features:
 
 Python 3.11+ is required.
 
-### Linux / macOS
+### Python environment
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate  # Windows PowerShell: .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -e ".[dev,ui]"
 ```
 
-### Windows PowerShell
-
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install -e ".[dev,ui]"
-```
-
-## Streamlit interface
+## Streamlit interface — operational workflow
 
 ```bash
 streamlit run streamlit_app/app.py
 ```
 
-The interface lets a consultant:
+The Streamlit application currently provides the complete end-to-end simulation path. A consultant can:
 
 1. upload a schema-1.0 `.xlsx` risk register;
-2. choose the simulation count and seed;
-3. choose P50, P80, P90 or P95 as the decision level;
-4. inspect the interactive distribution and S-curve;
-5. read the baseline exceedance probability and reserve;
-6. inspect Spearman sensitivity and convergence;
-7. download every generated artifact or one ZIP bundle.
+2. import its assumptions into an editable table;
+3. modify distributions and parameters directly from the interface;
+4. reset the assumptions to the imported state;
+5. validate the edited register before simulation;
+6. choose simulation count, seed and decision confidence level;
+7. inspect interactive Plotly views of the distribution and empirical S-curve;
+8. inspect Spearman sensitivity and the tornado view;
+9. read P50/P80/P90/P95, baseline exceedance probability and reserve;
+10. download the generated decision artifacts.
 
 Start with [`docs/user_guide_30min.md`](docs/user_guide_30min.md).
+
+## React / TypeScript interface — S5 frontend
+
+The `web/` directory contains the S5 frontend built with React, TypeScript and Vite.
+
+Routes:
+
+- `/configuration` — simulation preparation;
+- `/resultats` — results analysis;
+- `/scenarios` — scenario comparison.
+
+Run it with:
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+Production build:
+
+```bash
+npm run build
+```
+
+The React frontend is intentionally kept separate from the Monte Carlo domain logic. At the current repository state, its demonstration data live in `web/src/data/mockSimulation.ts`, while `web/src/services/simulationService.ts` is the adaptation boundary intended for backend integration.
 
 ## CLI
 
@@ -105,6 +134,23 @@ Supported canonical distributions and required parameters:
 
 The baseline is contextual information only. It is never added implicitly to the simulated total.
 
+## Interactive decision views
+
+### Distribution
+
+The histogram exposes the simulated intervals and counts on hover and displays the selected percentile markers.
+
+### Empirical S-curve
+
+The cumulative curve exposes cost and cumulative probability on hover, making it possible to read both:
+
+- the probability of remaining below a given budget;
+- the budget associated with a chosen confidence level.
+
+### Sensitivity
+
+Spearman rank sensitivity identifies the assumptions with the strongest monotonic relationship to the simulated total and feeds the tornado view.
+
 ## Decision artifacts
 
 A standard Excel run produces:
@@ -119,7 +165,7 @@ A standard Excel run produces:
 
 If a baseline exists, the workflow adds `baseline_comparison.csv`. If correlations are supplied, it adds `correlation_diagnostics.csv`.
 
-## Reproducible S3/S4 validation path
+## Reproducible validation path
 
 Generate and execute the synthetic correlated acceptance case with:
 
@@ -134,15 +180,6 @@ For field validation, use:
 - [`docs/consultant_validation_workshop.md`](docs/consultant_validation_workshop.md);
 - [`data/templates/consultant_validation_log.csv`](data/templates/consultant_validation_log.csv).
 
-## Documentation
-
-- [30-minute user guide](docs/user_guide_30min.md)
-- [Detailed Excel/schema guide](docs/user_guide.md)
-- [Consultant-facing methodology note](docs/methodology_note.md)
-- [Technical methodology](docs/methodology.md)
-- [Technical handover](docs/handover.md)
-- [S4 oral restitution script](docs/s4_restitution.md)
-
 ## Quality
 
 ```bash
@@ -153,27 +190,52 @@ pytest --cov=monte_carlo_simulator --cov-report=term-missing --cov-fail-under=85
 mypy src/monte_carlo_simulator
 ```
 
-The repository also runs these checks on pull requests through GitHub Actions.
+Frontend build:
+
+```bash
+cd web
+npm install
+npm run build
+```
 
 ## Simplified architecture
 
 ```text
+web/                         React + TypeScript + Vite frontend
+
+streamlit_app/               Operational interactive interface
+        |
+        v
 src/monte_carlo_simulator/
-  models/
-  distributions/
-  engine/
-  analysis/
-  io/
-  visualization/
-  application/
-streamlit_app/
+  application/               Application orchestration
+  models/                    Domain models
+  distributions/             Supported probability laws
+  engine/                    Monte Carlo execution
+  analysis/                  Percentiles, sensitivity, convergence
+  io/                        Excel schema, validation and exports
+  visualization/             Static/export visualizations
+
 tests/
 scripts/
 data/templates/
 docs/
 ```
 
-The interactive layer must remain thin: probabilistic rules belong in `src/monte_carlo_simulator`, not in Streamlit.
+The interactive layers must remain thin: probabilistic rules belong in `src/monte_carlo_simulator`, not in Streamlit or React components.
+
+## Documentation
+
+- [30-minute user guide](docs/user_guide_30min.md)
+- [Detailed Excel/schema guide](docs/user_guide.md)
+- [Consultant-facing methodology note](docs/methodology_note.md)
+- [Technical methodology](docs/methodology.md)
+- [Technical handover](docs/handover.md)
+- [S4 oral restitution script](docs/s4_restitution.md)
+- [React frontend notes](web/README.md)
+
+## Known limitation
+
+The current editable-hypotheses adapter exposes imported metadata and risk rows, but correlation matrices require special care when regenerating an edited workbook. Until this path is fully preserved end-to-end, correlated workbooks should be validated after editing to ensure the `correlations` sheet has not been lost.
 
 ## Confidentiality
 
@@ -181,6 +243,13 @@ The interactive layer must remain thin: probabilistic rules belong in `src/monte
 - Do not add client identifiers or personal data to examples or tests.
 - `.xlsx` and `.xls` files remain ignored globally except for the public fictitious template explicitly allowed by the repository rules.
 
-## Next extensions
+## Next steps
 
-Weeks 5–6 are reserved for user feedback and optional extensions: what-if mode, scenario comparison, PDF/PowerPoint decision exports and calibration from authorized historical data.
+Priority work for the end of S5 / beginning of S6:
+
+- preserve imported correlation matrices through the editable-hypotheses workflow;
+- connect the React service layer to the Python backend while keeping the simulation engine unchanged;
+- consolidate direct what-if editing and scenario comparison;
+- finalize user documentation and handover;
+- optional PDF/PowerPoint decision exports;
+- calibration from authorized historical project data if such data become available.
