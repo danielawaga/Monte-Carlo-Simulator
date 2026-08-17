@@ -1,17 +1,12 @@
-# S5 React interface
+# Interface web RiskSim
 
-This directory contains the consultant-facing interface introduced in week 5. It replaces the UI role previously held only by Streamlit while keeping the existing Python simulation engine as the single source of probabilistic rules.
+Interface React, TypeScript et Vite du simulateur Monte Carlo. Les trois parcours sont accessibles aux routes suivantes :
 
-## Development
+- `/configuration` — préparation d'une simulation ;
+- `/resultats` — analyse des résultats ;
+- `/scenarios` — comparaison de scénarios.
 
-From the repository root:
-
-```bash
-pip install -e ".[web]"
-uvicorn monte_carlo_simulator.web_api:app --reload --port 8000
-```
-
-Then in a second terminal:
+## Démarrage
 
 ```bash
 cd web
@@ -19,31 +14,11 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`.
-
-## Production build
+Pour produire la version optimisée :
 
 ```bash
-cd web
-npm install
 npm run build
-cd ..
-uvicorn monte_carlo_simulator.web_api:app --host 0.0.0.0 --port 8000
+npm run preview
 ```
 
-When `web/dist` exists, FastAPI serves the compiled single-page application directly.
-
-## Scope
-
-The S5 interface provides:
-
-- drag-and-drop Excel upload;
-- simulation count, seed and confidence-level selection;
-- P50/P80/P90/P95 decision metrics;
-- browser-native histogram and empirical S-curve;
-- Spearman sensitivity ranking;
-- baseline exposure reading;
-- scenario comparison by freezing a reference run, changing the workbook and re-running;
-- responsive layout for desktop and tablet use.
-
-The API adapter is intentionally thin. It calls `run_simulation_from_excel`; it does not duplicate distributions, correlation logic, convergence rules or sensitivity calculations.
+Les données de démonstration sont isolées dans `src/data/mockSimulation.ts`. Le service `src/services/simulationService.ts` constitue le point d'adaptation à remplacer par les appels au backend Python, sans déplacer de logique probabiliste dans les composants React.

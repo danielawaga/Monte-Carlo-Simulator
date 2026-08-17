@@ -11,11 +11,12 @@ htmlcov/
 .env
 *.tmp
 *.log
-node_modules/
 
 # Build artifacts
 dist/
 build/
+node_modules/
+*.tsbuildinfo
 *.egg-info/
 
 # Data outputs and confidential source files
