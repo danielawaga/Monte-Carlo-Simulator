@@ -1,6 +1,8 @@
 """Generate the public schema-v1 Excel risk-register template."""
 
+from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import Any
 
 from openpyxl import Workbook
 from openpyxl.formatting.rule import FormulaRule
@@ -42,6 +44,48 @@ def create_risk_register_template(output_path: str | Path) -> Path:
     workbook.properties.title = "Monte Carlo Simulator risk register template"
     workbook.properties.subject = f"Excel risk-register schema {SCHEMA_VERSION}"
     workbook.properties.description = "Fictitious example data only; no confidential content."
+    workbook.save(path)
+    workbook.close()
+    return path
+
+
+def create_risk_register_workbook(
+    output_path: str | Path,
+    *,
+    metadata_values: Mapping[str, Any],
+    risk_rows: Sequence[Mapping[str, Any]],
+) -> Path:
+    """Create a schema-v1 workbook from consultant-entered hypotheses."""
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    workbook = Workbook()
+    metadata = workbook.active
+    metadata.title = METADATA_SHEET
+    risk_register = workbook.create_sheet(RISK_REGISTER_SHEET)
+    instructions = workbook.create_sheet(INSTRUCTIONS_SHEET)
+
+    _populate_metadata(metadata)
+    _populate_risk_register(risk_register, rows=[])
+    _populate_instructions(instructions)
+
+    metadata_row_by_key = {
+        metadata.cell(row=row_number, column=1).value: row_number
+        for row_number in range(2, metadata.max_row + 1)
+    }
+    for key, value in metadata_values.items():
+        row_number = metadata_row_by_key.get(key)
+        if row_number is not None:
+            metadata.cell(row=row_number, column=2, value=value)
+
+    for source_row in risk_rows:
+        risk_register.append([source_row.get(column) for column in RISK_REGISTER_COLUMNS])
+    _format_risk_rows(risk_register)
+    risk_register.auto_filter.ref = f"A1:N{max(risk_register.max_row, 1)}"
+
+    workbook.properties.title = "Monte Carlo Simulator consultant risk register"
+    workbook.properties.subject = f"Excel risk-register schema {SCHEMA_VERSION}"
+    workbook.properties.description = "Workbook generated from consultant-entered hypotheses."
     workbook.save(path)
     workbook.close()
     return path
@@ -90,9 +134,12 @@ def _populate_metadata(worksheet: Worksheet) -> None:
     analysis_validation.add(worksheet["B4"])
 
 
-def _populate_risk_register(worksheet: Worksheet) -> None:
+def _populate_risk_register(
+    worksheet: Worksheet,
+    rows: Sequence[Sequence[Any]] | None = None,
+) -> None:
     worksheet.append(list(RISK_REGISTER_COLUMNS))
-    rows = [
+    example_rows = [
         [
             "Preliminary studies",
             "triangular",
@@ -190,7 +237,7 @@ def _populate_risk_register(worksheet: Worksheet) -> None:
             "Bernoulli occurrence multiplied by a deterministic impact.",
         ],
     ]
-    for row in rows:
+    for row in example_rows if rows is None else rows:
         worksheet.append(row)
 
     _style_header(worksheet, len(RISK_REGISTER_COLUMNS))
@@ -202,13 +249,7 @@ def _populate_risk_register(worksheet: Worksheet) -> None:
     for index, width in enumerate(widths, start=1):
         worksheet.column_dimensions[get_column_letter(index)].width = width
 
-    for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row):
-        for cell in row:
-            cell.alignment = Alignment(vertical="top", wrap_text=cell.column == 14)
-        for column in range(3, 11):
-            row[column - 1].number_format = "#,##0.00"
-    for cell in worksheet["H"][1:]:
-        cell.number_format = "0.00%"
+    _format_risk_rows(worksheet)
 
     distribution_validation = DataValidation(
         type="list",
@@ -234,6 +275,16 @@ def _populate_risk_register(worksheet: Worksheet) -> None:
 
     disabled_rule = FormulaRule(formula=["$M2=FALSE"], fill=_DISABLED_FILL)
     worksheet.conditional_formatting.add("A2:N1000", disabled_rule)
+
+
+def _format_risk_rows(worksheet: Worksheet) -> None:
+    for row in worksheet.iter_rows(min_row=2, max_row=worksheet.max_row):
+        for cell in row:
+            cell.alignment = Alignment(vertical="top", wrap_text=cell.column == 14)
+        for column in range(3, 11):
+            row[column - 1].number_format = "#,##0.00"
+    for cell in worksheet["H"][1:]:
+        cell.number_format = "0.00%"
 
 
 def _populate_instructions(worksheet: Worksheet) -> None:
