@@ -1,2 +1,24 @@
-import{ExternalLink,RefreshCw}from'lucide-react';import{risks}from'../../data/mockSimulation';import{Button,Card,CardTitle,StatusPill}from'../common';
-export function RiskPreviewTable(){return <Card><CardTitle info={false} action={<div className="table-actions"><Button>Voir tous les risques <ExternalLink/></Button><span>18 risques</span><RefreshCw/></div>}>Aperçu des risques importés</CardTitle><div className="table-wrap"><table><thead><tr>{['ID','Catégorie','Risque','Impact (P50)','Probabilité','Distribution','Statut'].map(x=><th>{x}</th>)}</tr></thead><tbody>{risks.map(r=><tr key={r.id}><td>{r.id}</td><td>{r.category}</td><td className="dark">{r.risk}</td><td>{r.impact}</td><td>{r.probability}</td><td>{r.distribution}</td><td><StatusPill>{r.status}</StatusPill></td></tr>)}</tbody></table></div><div className="pagination"><span>Affichage de 5 sur 18 risques</span><div><b>1</b><i>2</i><i>3</i><i>4</i><i>›</i></div></div></Card>}
+import { ExternalLink, RefreshCw } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { risks } from '../../data/mockSimulation';
+import { Card, CardTitle, StatusPill } from '../common';
+
+export function RiskPreviewTable() {
+  return (
+    <Card>
+      <CardTitle
+        info={false}
+        action={<div className="table-actions"><Link className="button secondary" to="/risques">Voir tous les risques <ExternalLink /></Link><span>10 risques</span><span><RefreshCw />Synchronisé à 17:54</span></div>}
+      >
+        Aperçu des risques importés
+      </CardTitle>
+      <div className="table-wrap">
+        <table>
+          <thead><tr>{['ID', 'Catégorie', 'Risque', 'Impact (P50)', 'Probabilité', 'Distribution', 'Statut'].map((heading) => <th key={heading}>{heading}</th>)}</tr></thead>
+          <tbody>{risks.map((risk) => <tr key={risk.id}><td>{risk.id}</td><td>{risk.category}</td><td className="dark">{risk.risk}</td><td>{risk.impact}</td><td>{risk.probability}</td><td>{risk.distribution}</td><td><StatusPill>{risk.status}</StatusPill></td></tr>)}</tbody>
+        </table>
+      </div>
+      <div className="pagination"><span>Affichage des 5 risques les plus contributifs sur 10.</span><span>Registre v2026.08.16</span></div>
+    </Card>
+  );
+}
