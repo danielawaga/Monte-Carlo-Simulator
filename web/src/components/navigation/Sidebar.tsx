@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   BarChart3,
   ChevronDown,
@@ -6,10 +5,10 @@ import {
   ClipboardList,
   Home,
   Settings,
-  SlidersHorizontal,
+  Dices,
   Users,
 } from 'lucide-react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 
 const Logo = () => (
   <NavLink className="brand" to="/" aria-label="RiskSim — Accueil">
@@ -28,10 +27,6 @@ const Logo = () => (
 );
 
 export function Sidebar() {
-  const { pathname } = useLocation();
-  const simulationActive = pathname === '/configuration' || pathname === '/scenarios';
-  const [simulationOpen, setSimulationOpen] = useState(simulationActive);
-
   return (
     <aside className="sidebar">
       <Logo />
@@ -44,29 +39,10 @@ export function Sidebar() {
           <ClipboardList />
           Registre de risques
         </NavLink>
-        <button
-          className={`nav-parent ${simulationActive ? 'parent-active' : ''}`}
-          type="button"
-          aria-expanded={simulationOpen}
-          aria-controls="simulation-navigation"
-          onClick={() => setSimulationOpen((open) => !open)}
-        >
-          <SlidersHorizontal />
-          <span>Simulation</span>
-          <ChevronDown className={simulationOpen ? 'chevron-open' : ''} />
-        </button>
-        {simulationOpen ? (
-          <div className="subnav" id="simulation-navigation">
-            <NavLink to="/configuration">
-              <i />
-              Configuration
-            </NavLink>
-            <NavLink to="/scenarios">
-              <i />
-              Scénarios
-            </NavLink>
-          </div>
-        ) : null}
+        <NavLink className="nav-main" to="/configuration">
+          <Dices />
+          Simulation
+        </NavLink>
         <NavLink className="nav-main" to="/resultats">
           <BarChart3 />
           Résultats

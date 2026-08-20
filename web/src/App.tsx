@@ -18,7 +18,8 @@ export default function App() {
         <Route path="/risques" element={<RiskRegisterPage />} />
         <Route path="/configuration" element={<SimulationConfigurationPage />} />
         <Route path="/resultats" element={<SimulationResultsPage />} />
-        <Route path="/scenarios" element={<ScenarioComparisonPage />} />
+        <Route path="/scenarios" element={<Navigate to="/configuration?tab=scenarios" replace />} />
+        <Route path="/comparaison" element={<ScenarioComparisonPage />} />
         <Route path="/parametres" element={<SettingsPage />} />
         <Route path="/administration" element={<AdministrationPage />} />
         <Route path="/aide" element={<HelpPage />} />

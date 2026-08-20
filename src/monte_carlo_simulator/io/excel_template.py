@@ -12,6 +12,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.worksheet import Worksheet
 
 from monte_carlo_simulator.io.schema import (
+    CORRELATIONS_SHEET,
     INSTRUCTIONS_SHEET,
     METADATA_KEYS,
     METADATA_SHEET,
@@ -54,6 +55,8 @@ def create_risk_register_workbook(
     *,
     metadata_values: Mapping[str, Any],
     risk_rows: Sequence[Mapping[str, Any]],
+    correlation_names: Sequence[str] | None = None,
+    correlation_values: Sequence[Sequence[Any]] | None = None,
 ) -> Path:
     """Create a schema-v1 workbook from consultant-entered hypotheses."""
     path = Path(output_path)
@@ -82,6 +85,26 @@ def create_risk_register_workbook(
         risk_register.append([source_row.get(column) for column in RISK_REGISTER_COLUMNS])
     _format_risk_rows(risk_register)
     risk_register.auto_filter.ref = f"A1:N{max(risk_register.max_row, 1)}"
+
+    if correlation_names is not None or correlation_values is not None:
+        if correlation_names is None or correlation_values is None:
+            raise ValueError("correlation_names and correlation_values must be supplied together")
+        if len(correlation_names) != len(correlation_values) or any(
+            len(row) != len(correlation_names) for row in correlation_values
+        ):
+            raise ValueError("Correlation matrix dimensions must match correlation_names")
+        correlations = workbook.create_sheet(CORRELATIONS_SHEET)
+        correlations.append([None, *correlation_names])
+        for name, values in zip(correlation_names, correlation_values, strict=True):
+            correlations.append([name, *values])
+        _style_header(correlations, len(correlation_names) + 1)
+        correlations.freeze_panes = "B2"
+        correlations.column_dimensions["A"].width = 28
+        for column in range(2, len(correlation_names) + 2):
+            correlations.column_dimensions[get_column_letter(column)].width = 14
+        for row in correlations.iter_rows(min_row=2, min_col=2):
+            for cell in row:
+                cell.number_format = "0.000"
 
     workbook.properties.title = "Monte Carlo Simulator consultant risk register"
     workbook.properties.subject = f"Excel risk-register schema {SCHEMA_VERSION}"

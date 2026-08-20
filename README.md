@@ -27,7 +27,7 @@ The S5 work focuses on making the simulator easier to explore and use interactiv
 - interactive Plotly visualizations with exact values on hover;
 - editable assumptions after Excel import in the Streamlit workflow;
 - reset/re-run workflow for lightweight what-if analysis;
-- React/TypeScript/Vite frontend with dedicated Configuration, Results and Scenario Comparison screens;
+- React/TypeScript/Vite frontend with a risk-register builder, unified Simulation/Scenarios workspace and Results screen;
 - reproducible synthetic acceptance case and consultant-validation protocol;
 - user, methodology, handover and restitution documentation.
 
@@ -65,17 +65,26 @@ The Streamlit application currently provides the complete end-to-end simulation 
 
 Start with [`docs/user_guide_30min.md`](docs/user_guide_30min.md).
 
-## React / TypeScript interface — S5 frontend
+## React / TypeScript interface — S6 integrated workflow
 
 The `web/` directory contains the S5 frontend built with React, TypeScript and Vite.
 
-Routes:
+Main routes:
 
+- `/risques` — project, risk items, distributions, correlations, validation and Excel export;
 - `/configuration` — simulation preparation;
 - `/resultats` — results analysis;
-- `/scenarios` — scenario comparison.
+- `/comparaison` — detailed comparison of a frozen reference and the current run, linked from Results;
+- `/scenarios` — compatibility redirect to the Scenarios tab in `/configuration`.
 
-Run it with:
+Install the Python web dependencies and start the API from the repository root:
+
+```bash
+pip install -e ".[web]"
+uvicorn monte_carlo_simulator.web_api:app --reload --port 8000
+```
+
+In a second terminal, start the frontend:
 
 ```bash
 cd web
@@ -89,7 +98,7 @@ Production build:
 npm run build
 ```
 
-The React frontend is intentionally kept separate from the Monte Carlo domain logic. At the current repository state, its demonstration data live in `web/src/data/mockSimulation.ts`, while `web/src/services/simulationService.ts` is the adaptation boundary intended for backend integration.
+The `/risques` route builds or imports a schema-1.0 register, validates it through the Python engine and exports a compatible `.xlsx`, including an optional correlation matrix. `/configuration` reuses that shared register, groups execution standards and scenario documentation on one screen, and sends the draft directly to the API. `/resultats` displays the resulting indicators, histogram, S-curve and sensitivity ranking. The API delegates all probabilistic rules to `run_simulation_from_excel`; React remains responsible for editing, presentation and local scenario snapshots. Secondary workspace views still use demonstration data.
 
 ## CLI
 
