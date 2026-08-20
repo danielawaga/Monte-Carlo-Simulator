@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Bell, Database, Globe2, Save, ShieldCheck, SlidersHorizontal } from 'lucide-react';
+import { Bell, Database, Globe2, Save } from 'lucide-react';
 import { Button, Card, CardTitle, PageHeader, StatusPill } from '../../components/common';
 
 type NotificationKey = 'simulation' | 'criticalRisk' | 'approval' | 'weeklyReport';
@@ -29,31 +29,16 @@ export function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Paramètres du projet" subtitle="Référentiel de calcul, gouvernance des données et règles de notification." />
+      <PageHeader title="Paramètres" subtitle="Préférences générales, gouvernance des données et règles de notification." />
       <form className="pro-settings-layout" onSubmit={saveSettings} onChange={() => setSaved(false)}>
         <Card className="pro-settings-card">
-          <CardTitle info={false}><span className="title-with-icon"><Globe2 />Identité et contexte du projet</span></CardTitle>
+          <CardTitle info={false}><span className="title-with-icon"><Globe2 />Préférences générales</span></CardTitle>
           <div className="pro-form-grid">
-            <label className="wide">Nom du projet<input defaultValue="Projet Atlas — Modernisation du SI" /></label>
-            <label>Code projet<input defaultValue="ATL-SI-2026" /></label>
-            <label>Devise de référence<select defaultValue="EUR"><option value="EUR">Euro (EUR)</option><option value="MAD">Dirham marocain (MAD)</option><option value="USD">Dollar américain (USD)</option></select></label>
             <label>Fuseau horaire<select defaultValue="Africa/Casablanca"><option>Africa/Casablanca</option><option>Europe/Paris</option><option>UTC</option></select></label>
-            <label>Date d’arrêté<input type="date" defaultValue="2026-08-17" /></label>
-            <label className="wide">Description<textarea defaultValue="Programme de modernisation des applications cœur et de migration des données historiques." /></label>
+            <label>Langue de l’interface<select defaultValue="fr"><option value="fr">Français</option><option value="en">English</option></select></label>
+            <label>Format des nombres<select defaultValue="fr-FR"><option value="fr-FR">1 234 567,89</option><option value="en-US">1,234,567.89</option></select></label>
+            <label>Thème<select defaultValue="system"><option value="system">Système</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label>
           </div>
-        </Card>
-
-        <Card className="pro-settings-card">
-          <CardTitle info={false}><span className="title-with-icon"><SlidersHorizontal />Standards de modélisation</span></CardTitle>
-          <div className="pro-form-grid">
-            <label>Itérations par défaut<select defaultValue="50000"><option value="10000">10 000</option><option value="50000">50 000</option><option value="100000">100 000</option></select></label>
-            <label>Méthode d’échantillonnage<select defaultValue="lhs"><option value="lhs">Latin Hypercube</option><option value="random">Pseudo-aléatoire</option></select></label>
-            <label>Niveau d’engagement<select defaultValue="80"><option value="75">P75</option><option value="80">P80</option><option value="90">P90</option></select></label>
-            <label>Seuil de dépassement (€)<input type="number" defaultValue="5000000" step="100000" /></label>
-            <label>Seuil de convergence<select defaultValue="1"><option value="0.5">0,5 %</option><option value="1">1 %</option><option value="2">2 %</option></select></label>
-            <label>Politique de corrélation<select defaultValue="explicit"><option value="explicit">Matrice explicite requise</option><option value="independent">Indépendance par défaut</option></select></label>
-          </div>
-          <div className="pro-policy-note"><ShieldCheck /><span><b>Contrôle de gouvernance actif</b> Toute modification de ces paramètres invalide les simulations précédemment approuvées.</span></div>
         </Card>
 
         <Card className="pro-settings-card">

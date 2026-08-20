@@ -59,3 +59,33 @@ def test_consultant_workbook_contains_entered_hypotheses(tmp_path: Path) -> None
         assert len(workbook["risk_register"].data_validations.dataValidation) == 2
     finally:
         workbook.close()
+
+
+def test_consultant_workbook_can_include_correlation_matrix(tmp_path: Path) -> None:
+    path = create_risk_register_workbook(
+        tmp_path / "correlated-consultant.xlsx",
+        metadata_values={
+            "project_name": "Projet corrélé",
+            "analysis_type": "cost",
+            "default_unit": "EUR",
+        },
+        risk_rows=[
+            {"name": "A", "distribution": "uniform", "minimum": 0, "maximum": 10},
+            {"name": "B", "distribution": "uniform", "minimum": 0, "maximum": 20},
+        ],
+        correlation_names=["A", "B"],
+        correlation_values=[[1, 0.35], [0.35, 1]],
+    )
+
+    workbook = load_workbook(path)
+    try:
+        assert workbook.sheetnames == [
+            "metadata",
+            "risk_register",
+            "instructions",
+            "correlations",
+        ]
+        assert workbook["correlations"]["C2"].value == 0.35
+        assert workbook["correlations"]["B3"].value == 0.35
+    finally:
+        workbook.close()

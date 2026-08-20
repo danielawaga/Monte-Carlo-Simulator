@@ -1,0 +1,193 @@
+"""Contract tests for the React-to-Python HTTP adapter."""
+
+from pathlib import Path
+
+from fastapi.testclient import TestClient
+from openpyxl import load_workbook
+
+from monte_carlo_simulator.io import create_risk_register_workbook
+from monte_carlo_simulator.web_api import app
+
+client = TestClient(app)
+
+
+def _draft_payload() -> dict[str, object]:
+    return {
+        "schemaVersion": "1.0",
+        "metadata": {
+            "projectName": "Projet interface",
+            "analysisType": "cost",
+            "defaultUnit": "EUR",
+            "baselineEstimate": 1000,
+            "description": "Brouillon JSON",
+        },
+        "items": [
+            {
+                "id": "risk-1",
+                "name": "Études",
+                "distribution": "triangular",
+                "minimum": 100,
+                "mostLikely": 150,
+                "maximum": 250,
+                "category": "Ingénierie",
+                "unit": "EUR",
+                "enabled": True,
+                "notes": "",
+            },
+            {
+                "id": "risk-2",
+                "name": "Aléa",
+                "distribution": "event",
+                "probability": 0.2,
+                "impact": 500,
+                "category": "Marché",
+                "unit": "EUR",
+                "enabled": True,
+                "notes": "",
+            },
+        ],
+        "correlations": {
+            "mode": "correlated",
+            "names": ["Études", "Aléa"],
+            "values": [[1, 0.2], [0.2, 1]],
+        },
+    }
+
+
+def test_health_endpoint_exposes_engine_status() -> None:
+    response = client.get("/api/health")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok", "engine": "monte-carlo-simulator"}
+
+
+def test_simulation_rejects_non_xlsx_upload() -> None:
+    response = client.post(
+        "/api/simulate",
+        files={"file": ("register.csv", b"name,value", "text/csv")},
+    )
+
+    assert response.status_code == 415
+    assert response.json()["detail"] == "Seuls les registres .xlsx sont acceptés."
+
+
+def test_template_endpoint_returns_excel_workbook() -> None:
+    response = client.get("/api/template")
+
+    assert response.status_code == 200
+    assert response.headers["content-disposition"].endswith(
+        'filename="risk_register_template.xlsx"'
+    )
+    assert response.content.startswith(b"PK")
+
+
+def test_simulation_endpoint_runs_engine_and_preserves_correlations(tmp_path: Path) -> None:
+    workbook_path = tmp_path / "correlated.xlsx"
+    create_risk_register_workbook(
+        workbook_path,
+        metadata_values={
+            "project_name": "API correlated",
+            "analysis_type": "cost",
+            "default_unit": "EUR",
+            "baseline_estimate": 120,
+        },
+        risk_rows=[
+            {"name": "A", "distribution": "uniform", "minimum": 0, "maximum": 100},
+            {"name": "B", "distribution": "uniform", "minimum": 0, "maximum": 200},
+        ],
+    )
+    workbook = load_workbook(workbook_path)
+    sheet = workbook.create_sheet("correlations")
+    sheet.append([None, "A", "B"])
+    sheet.append(["A", 1, 0.25])
+    sheet.append(["B", 0.25, 1])
+    workbook.save(workbook_path)
+    workbook.close()
+
+    with workbook_path.open("rb") as stream:
+        response = client.post(
+            "/api/simulate",
+            files={
+                "file": (
+                    workbook_path.name,
+                    stream,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                )
+            },
+            data={
+                "simulations": "200",
+                "seed": "20260818",
+                "confidence_levels": "0.50,0.80,0.90,0.95",
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["project"]["name"] == "API correlated"
+    assert payload["run"]["simulations"] == 200
+    assert payload["run"]["correlationsEnabled"] is True
+    assert [row["percentile"] for row in payload["percentiles"]] == [
+        "P50",
+        "P80",
+        "P90",
+        "P95",
+    ]
+    assert payload["histogram"]
+    assert payload["sCurve"]
+
+
+def test_register_draft_can_be_validated_exported_and_imported() -> None:
+    draft = _draft_payload()
+
+    validation = client.post("/api/register/validate", json=draft)
+    assert validation.status_code == 200
+    assert validation.json() == {
+        "valid": True,
+        "projectName": "Projet interface",
+        "totalItems": 2,
+        "activeItems": 2,
+        "correlationsEnabled": True,
+    }
+
+    exported = client.post("/api/register/export", json=draft)
+    assert exported.status_code == 200
+    assert exported.content.startswith(b"PK")
+
+    imported = client.post(
+        "/api/register/import",
+        files={
+            "file": (
+                "registre.xlsx",
+                exported.content,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
+    )
+    assert imported.status_code == 200
+    imported_register = imported.json()["register"]
+    assert imported_register["metadata"]["projectName"] == "Projet interface"
+    assert [item["name"] for item in imported_register["items"]] == ["Études", "Aléa"]
+    assert imported_register["correlations"]["values"] == [[1.0, 0.2], [0.2, 1.0]]
+
+
+def test_register_draft_can_launch_simulation() -> None:
+    response = client.post(
+        "/api/register/simulate",
+        json={
+            "register": _draft_payload(),
+            "config": {
+                "simulations": 120,
+                "seed": 20260820,
+                "levels": [50, 80, 90, 95],
+                "decisionPercentile": 80,
+                "exceedanceThreshold": 1800,
+                "convergenceTolerance": 1,
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["project"]["name"] == "Projet interface"
+    assert payload["run"]["simulations"] == 120
+    assert payload["run"]["correlationsEnabled"] is True

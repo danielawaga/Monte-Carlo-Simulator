@@ -1,55 +1,58 @@
-import { FileSpreadsheet, FolderOpen, Play, RefreshCw, Save, Trash2 } from 'lucide-react';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button, Card, CardTitle, PageHeader, SelectButton, StatusPill } from '../components/common';
-import { AssumptionsSection } from '../components/configuration/AssumptionsSection';
-import { StatCard } from '../components/cards/StatCard';
-import { RiskPreviewTable } from '../components/tables/RiskPreviewTable';
+import { CheckCircle2, ClipboardList, Copy, Dices, Edit3, Play, RefreshCw, Save, Trash2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Button, Card, CardTitle, PageHeader, StatusPill } from '../components/common';
+import { simulationService } from '../services/simulationService';
+import { useSimulation } from '../state/SimulationContext';
+import type { SimulationWorkspaceConfig } from '../types';
 
-export function SimulationConfigurationPage() {
-  const navigate = useNavigate();
-  const [scenarioMenuOpen, setScenarioMenuOpen] = useState(false);
-  const [selectedScenario, setSelectedScenario] = useState('Référence validée · SIM-260816-03');
-  const [loadedScenario, setLoadedScenario] = useState('');
-  const [fileName, setFileName] = useState('Registre_Risques_Projet_Atlas.xlsx');
-  const [seed, setSeed] = useState('20260816');
-  const [configurationSaved, setConfigurationSaved] = useState(false);
+const numberOrNull=(value:string)=>value===''?null:Number(value);
 
-  return (
-    <>
-      <PageHeader
-        title="Configuration de la simulation"
-        subtitle="Configurez les paramètres de la simulation de Monte Carlo et lancez l’analyse."
-        actions={<SelectButton aria-expanded={scenarioMenuOpen} onClick={() => setScenarioMenuOpen((open) => !open)}><FolderOpen />Charger un scénario</SelectButton>}
-      />
-      {scenarioMenuOpen ? <Card className="scenario-loader"><label>Scénario enregistré<select value={selectedScenario} onChange={(event) => setSelectedScenario(event.target.value)}><option>Référence validée · SIM-260816-03</option><option>Plan de mitigation v2 · SIM-260816-02</option><option>Stress fournisseurs · SIM-260815-06</option></select></label><div><Button onClick={() => setScenarioMenuOpen(false)}>Annuler</Button><Button variant="primary" onClick={() => { setLoadedScenario(selectedScenario); setScenarioMenuOpen(false); }}>Charger la configuration</Button></div></Card> : null}
-      {loadedScenario ? <div className="pro-success-banner"><Save />Configuration « {loadedScenario} » chargée.</div> : null}
-      <div className="config-grid">
-        <Card className="upload">
-          <CardTitle info={false}>Registre de risques (Excel)</CardTitle>
-          <p>Importer un fichier .xlsx depuis votre registre de risques.</p>
-          <div className="dropzone"><FileSpreadsheet /><span>Glissez-déposez votre fichier Excel ici<br />ou</span><label className="button secondary">Parcourir les fichiers<input className="sr-only" type="file" accept=".xlsx,.xls" onChange={(event) => { const selectedFile = event.target.files?.[0]; if (selectedFile) setFileName(selectedFile.name); }} /></label></div>
-          {fileName ? <div className="file-row"><FileSpreadsheet /><div><strong>{fileName}</strong><small>31,8 Ko • Importé le 16/08/2026 à 17:54</small></div><StatusPill>Fichier valide</StatusPill><Button aria-label="Retirer le registre importé" onClick={() => setFileName('')}><Trash2 /></Button></div> : <div className="config-empty-file">Aucun registre chargé. Importez un fichier Excel pour lancer une simulation.</div>}
-        </Card>
-        <div className="parameters">
-          <Card><CardTitle>Nombre de simulations</CardTitle><input value="50 000" readOnly /><small>Standard approuvé pour le reporting de gouvernance</small></Card>
-          <Card><CardTitle>Graine aléatoire (seed)</CardTitle><div className="input-action"><input value={seed} readOnly /><Button aria-label="Générer une nouvelle graine" onClick={() => setSeed(String(Math.floor(10000000 + Math.random() * 90000000)))}><RefreshCw /></Button></div><small>Conservée pour assurer la reproductibilité</small></Card>
-        </div>
-        <Card className="levels">
-          <CardTitle>Niveaux de confiance</CardTitle>
-          {[50, 80, 90, 95].map((level) => <label key={level}><b>P{level}</b><input value={level} readOnly /><span>%</span></label>)}
-          <p>Les percentiles seront calculés sur la distribution des résultats.</p>
-        </Card>
-        <AssumptionsSection />
-        <Card className="summary-strip">
-          <StatCard label="Estimation de référence (coût)" value="2 450 000 €" sub="Définie dans le registre de risques" />
-          <StatCard label="Risques suivis" value="10" sub="1 critique · 4 élevés" icon="alert" />
-          <StatCard label="Horizon d’analyse" value="31/12/2026" sub="Fin de projet approuvée" icon="shield" />
-        </Card>
-        <RiskPreviewTable />
-        {configurationSaved ? <div className="pro-success-banner config-save-confirmation"><Save />Configuration enregistrée avec la graine {seed}.</div> : null}
-        <div className="page-actions"><Button onClick={() => setConfigurationSaved(true)}><Save />Enregistrer la configuration</Button><Button variant="primary" disabled={!fileName} onClick={() => navigate('/resultats')}><Play />Lancer la simulation</Button></div>
+export function SimulationConfigurationPage(){
+  const navigate=useNavigate();
+  const [searchParams,setSearchParams]=useSearchParams();
+  const {register,config,setConfig,setResult,scenarios,saveScenario,loadScenario,deleteScenario}=useSimulation();
+  const tab=searchParams.get('tab')==='scenarios'?'scenarios':'configuration';
+  const [message,setMessage]=useState('');
+  const [error,setError]=useState('');
+  const [running,setRunning]=useState(false);
+  const activeItems=useMemo(()=>register.items.filter((item)=>item.enabled),[register.items]);
+  const update=(patch:Partial<SimulationWorkspaceConfig>)=>{setConfig({...config,...patch});setMessage('');setError('')};
+  const setTab=(value:'configuration'|'scenarios')=>setSearchParams(value==='scenarios'?{tab:'scenarios'}:{});
+  const toggleLevel=(level:number)=>{
+    const levels=config.levels.includes(level)?config.levels.filter((item)=>item!==level):[...config.levels,level].sort((a,b)=>a-b);
+    if(levels.length)update({levels});
+  };
+  const run=async()=>{
+    setRunning(true);setError('');setMessage('');
+    try{const result=await simulationService.simulateDraft(register,config);setResult(result);navigate('/resultats')}
+    catch(reason){setError(reason instanceof Error?reason.message:'La simulation a échoué.')}
+    finally{setRunning(false)}
+  };
+  const save=()=>{const saved=saveScenario();setMessage(`Le scénario « ${saved.name} » a été enregistré.`)};
+  const load=(id:string)=>{loadScenario(id);setMessage('Le scénario et son registre ont été chargés.');setTab('configuration')};
+
+  return <>
+    <PageHeader title="Simulation" subtitle="Réglez l’exécution, documentez le scénario et lancez l’analyse à partir du registre courant." actions={<Button variant="primary" disabled={!activeItems.length||running} onClick={()=>void run()}><Play/>{running?'Simulation en cours…':'Lancer la simulation'}</Button>}/>
+    <div className="simulation-tabs" role="tablist" aria-label="Simulation et scénarios"><button role="tab" aria-selected={tab==='configuration'} className={tab==='configuration'?'active':''} onClick={()=>setTab('configuration')}><Dices/>Configuration</button><button role="tab" aria-selected={tab==='scenarios'} className={tab==='scenarios'?'active':''} onClick={()=>setTab('scenarios')}><Copy/>Scénarios <span>{scenarios.length}</span></button></div>
+    {message?<div className="pro-success-banner"><CheckCircle2/>{message}</div>:null}
+    {error?<div className="pro-error-banner simulation-banner" role="alert">{error}</div>:null}
+
+    {tab==='configuration'?<div className="simulation-workspace">
+      <Card className="project-overview-card"><CardTitle info={false} action={<Button onClick={()=>navigate('/risques')}><Edit3/>Corriger le registre</Button>}>Aperçu du projet</CardTitle><div className="project-overview-grid"><div><span>Projet</span><b>{register.metadata.projectName||'Projet sans nom'}</b><small>{register.metadata.analysisType==='cost'?'Analyse de coût':'Analyse de durée'} · {register.metadata.defaultUnit}</small></div><div><span>Référence</span><b>{register.metadata.baselineEstimate?.toLocaleString('fr-FR')??'Non définie'} {register.metadata.baselineEstimate!==null?register.metadata.defaultUnit:''}</b><small>Valeur de comparaison, non ajoutée au total</small></div><div><span>Postes actifs</span><b>{activeItems.length}</b><small>{register.correlations.mode==='correlated'?'Matrice de corrélation':'Hypothèse d’indépendance'}</small></div><div><span>Schéma</span><b>Version {register.schemaVersion}</b><small>Compatible avec le moteur Python</small></div></div><div className="project-risk-preview"><table><thead><tr><th>Poste</th><th>Distribution</th><th>Catégorie</th><th>Unité</th></tr></thead><tbody>{activeItems.slice(0,5).map((item)=><tr key={item.id}><td><b>{item.name}</b></td><td>{item.distribution}</td><td>{item.category||'—'}</td><td>{item.unit||register.metadata.defaultUnit}</td></tr>)}</tbody></table>{activeItems.length>5?<div className="compact-table-note">+ {activeItems.length-5} autre(s) poste(s) dans le registre</div>:null}</div></Card>
+
+      <div className="simulation-config-grid">
+        <Card className="simulation-parameters-card"><CardTitle info={false}>Paramètres d’exécution</CardTitle><div className="simulation-form-grid"><label>Nombre de simulations<select value={config.simulations} onChange={(event)=>update({simulations:Number(event.target.value)})}><option value="10000">10 000</option><option value="50000">50 000</option><option value="100000">100 000</option><option value="250000">250 000</option></select><small>Plus le nombre est élevé, plus les estimations se stabilisent.</small></label><label>Graine aléatoire<div className="input-action"><input type="number" min="0" value={config.seed} onChange={(event)=>update({seed:Math.max(0,Number(event.target.value))})}/><Button aria-label="Générer une nouvelle graine" onClick={()=>update({seed:Math.floor(Math.random()*2_147_483_647)})}><RefreshCw/></Button></div><small>Même registre + mêmes réglages + même graine = mêmes tirages.</small></label><label>Méthode d’échantillonnage<select value={config.samplingMethod} disabled><option value="pseudo-random">Pseudo-aléatoire</option></select><small>Latin Hypercube sera proposé après validation dans le moteur.</small></label><label>Seuil de convergence<select value={config.convergenceTolerance} onChange={(event)=>update({convergenceTolerance:Number(event.target.value)})}><option value="0.5">0,5 %</option><option value="1">1 %</option><option value="2">2 %</option></select><small>Critère documenté pour l’analyse de stabilité.</small></label></div></Card>
+        <Card className="decision-settings-card"><CardTitle info={false}>Niveaux et décision</CardTitle><div className="confidence-selector">{[50,75,80,90,95].map((level)=><label className={config.levels.includes(level)?'selected':''} key={level}><input type="checkbox" checked={config.levels.includes(level)} onChange={()=>toggleLevel(level)}/><b>P{level}</b></label>)}</div><div className="decision-form"><label>Niveau de décision<select value={config.decisionPercentile} onChange={(event)=>update({decisionPercentile:Number(event.target.value)})}>{config.levels.map((level)=><option value={level} key={level}>P{level}</option>)}</select></label><label>Seuil de dépassement ({register.metadata.defaultUnit})<input type="number" value={config.exceedanceThreshold??''} onChange={(event)=>update({exceedanceThreshold:numberOrNull(event.target.value)})}/></label></div><p>Les percentiles sélectionnés apparaîtront dans les résultats. Le niveau de décision sert de repère de gouvernance.</p></Card>
       </div>
-    </>
-  );
+
+      <Card className="scenario-definition-card"><CardTitle info={false} action={<Button onClick={save}><Save/>Enregistrer le scénario</Button>}>Documentation du scénario</CardTitle><div className="scenario-definition-form"><label>Nom du scénario<input value={config.scenarioName} onChange={(event)=>update({scenarioName:event.target.value})} placeholder="Ex. Référence, mitigation, stress…"/></label><label>Description et hypothèses<textarea value={config.scenarioDescription} onChange={(event)=>update({scenarioDescription:event.target.value})} placeholder="Mesures appliquées, sources et justification…"/></label></div></Card>
+
+      <div className="simulation-preflight"><div><CheckCircle2/><span><b>Prêt à simuler</b><small>{activeItems.length} postes · {config.simulations.toLocaleString('fr-FR')} tirages · graine {config.seed}</small></span></div><div><Button onClick={save}><Save/>Enregistrer</Button><Button variant="primary" disabled={!activeItems.length||running||!config.levels.length} onClick={()=>void run()}><Play/>{running?'Calcul en cours…':'Lancer la simulation'}</Button></div></div>
+    </div>:null}
+
+    {tab==='scenarios'?<Card className="saved-scenarios-card"><CardTitle info={false} action={<Button onClick={()=>setTab('configuration')}><PlusIcon/>Nouveau scénario</Button>}>Scénarios enregistrés</CardTitle><p className="builder-intro">Chaque scénario conserve une copie du registre et des paramètres d’exécution afin de rendre les comparaisons reproductibles.</p>{scenarios.length?<div className="saved-scenario-list">{scenarios.map((scenario)=><article key={scenario.id}><span className="scenario-dot"/><div><b>{scenario.name}</b><p>{scenario.description||'Aucune description.'}</p><small>{new Date(scenario.savedAt).toLocaleString('fr-FR')} · {scenario.config.simulations.toLocaleString('fr-FR')} tirages · graine {scenario.config.seed}</small></div><StatusPill tone="blue">{scenario.register.items.filter((item)=>item.enabled).length} postes</StatusPill><Button onClick={()=>load(scenario.id)}>Charger</Button><Button aria-label={`Supprimer ${scenario.name}`} onClick={()=>deleteScenario(scenario.id)}><Trash2/></Button></article>)}</div>:<div className="pro-empty-state"><ClipboardList/><b>Aucun scénario enregistré</b><span>Documentez la configuration actuelle puis enregistrez-la pour la réutiliser.</span><Button variant="primary" onClick={()=>setTab('configuration')}>Configurer le premier scénario</Button></div>}</Card>:null}
+  </>;
 }
+
+function PlusIcon(){return <span aria-hidden="true" className="button-plus">+</span>}
