@@ -1,6 +1,8 @@
 """Contract tests for the React-to-Python HTTP adapter."""
 
+from io import BytesIO
 from pathlib import Path
+from zipfile import ZipFile
 
 from fastapi.testclient import TestClient
 from openpyxl import load_workbook
@@ -191,3 +193,74 @@ def test_register_draft_can_launch_simulation() -> None:
     assert payload["project"]["name"] == "Projet interface"
     assert payload["run"]["simulations"] == 120
     assert payload["run"]["correlationsEnabled"] is True
+
+
+def test_complete_results_can_be_exported_to_excel() -> None:
+    config = {
+        "simulations": 120,
+        "seed": 20260820,
+        "levels": [50, 80, 90, 95],
+        "decisionPercentile": 80,
+        "exceedanceThreshold": 1800,
+        "convergenceTolerance": 1,
+    }
+    simulated = client.post(
+        "/api/register/simulate",
+        json={"register": _draft_payload(), "config": config},
+    )
+    assert simulated.status_code == 200
+
+    exported = client.post(
+        "/api/results/export",
+        json={
+            "result": simulated.json(),
+            "register": _draft_payload(),
+            "config": config,
+        },
+    )
+
+    assert exported.status_code == 200
+    assert exported.content.startswith(b"PK")
+    assert exported.headers["content-disposition"].endswith('filename="resultats_monte_carlo.xlsx"')
+    workbook = load_workbook(BytesIO(exported.content), data_only=False)
+    assert workbook.sheetnames == [
+        "Synthèse",
+        "Percentiles",
+        "Sensibilité",
+        "Convergence",
+        "Hypothèses",
+        "Robustesse",
+    ]
+    assert workbook["Synthèse"]["B5"].value == "Projet interface"
+    assert workbook["Hypothèses"]["B5"].value == 120
+    assert workbook["Robustesse"]["A14"].value == "Études"
+    assert workbook["Robustesse"]["B14"].value == 1
+    workbook.close()
+
+    bundle = client.post(
+        "/api/results/export-bundle",
+        json={
+            "result": simulated.json(),
+            "register": _draft_payload(),
+            "config": config,
+        },
+    )
+    assert bundle.status_code == 200
+    assert bundle.headers["content-type"] == "application/zip"
+    with ZipFile(BytesIO(bundle.content)) as archive:
+        expected = {
+            "LISEZ_MOI.txt",
+            "registre_risques_utilise.xlsx",
+            "resultats_monte_carlo.xlsx",
+            "donnees/resultats.json",
+            "graphiques/01_histogramme_distribution.png",
+            "graphiques/02_courbe_probabilite_s.png",
+            "graphiques/03_sensibilite_tornado.png",
+            "graphiques/04_convergence.png",
+        }
+        assert set(archive.namelist()) == expected
+        assert archive.read("registre_risques_utilise.xlsx").startswith(b"PK")
+        assert archive.read("resultats_monte_carlo.xlsx").startswith(b"PK")
+        for name in expected:
+            if name.endswith(".png"):
+                assert archive.read(name).startswith(b"\x89PNG\r\n\x1a\n")

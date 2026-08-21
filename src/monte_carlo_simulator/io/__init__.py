@@ -17,6 +17,8 @@ from .exporters import (
     export_sensitivity_to_csv,
     export_summary_to_csv,
 )
+from .results_bundle import build_simulation_results_bundle
+from .results_workbook import build_simulation_results_workbook
 
 __all__ = [
     "dataframe_to_risk_items",
@@ -32,5 +34,7 @@ __all__ = [
     "load_risk_register",
     "load_risk_register_dataframe",
     "load_risk_register_excel",
+    "build_simulation_results_workbook",
+    "build_simulation_results_bundle",
     "load_workbook",
 ]

@@ -46,11 +46,41 @@ async function simulateDraft(register:RiskRegisterDraft,config:SimulationWorkspa
   return response.json() as Promise<SimulationResponse>;
 }
 
+async function exportResults(
+  result: SimulationResponse,
+  register: RiskRegisterDraft,
+  config: SimulationWorkspaceConfig,
+): Promise<Blob> {
+  const response = await fetch('/api/results/export', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ result, register, config }),
+  });
+  if (!response.ok) throw await apiError(response, `L’export des résultats a échoué (${response.status}).`);
+  return response.blob();
+}
+
+async function exportResultsBundle(
+  result: SimulationResponse,
+  register: RiskRegisterDraft,
+  config: SimulationWorkspaceConfig,
+): Promise<Blob> {
+  const response = await fetch('/api/results/export-bundle', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ result, register, config }),
+  });
+  if (!response.ok) throw await apiError(response, `Le dossier ZIP n’a pas pu être généré (${response.status}).`);
+  return response.blob();
+}
+
 export const simulationService = {
   simulate,
   importRegister,
   validateRegister,
   exportRegister,
+  exportResults,
+  exportResultsBundle,
   simulateDraft,
   async getRisks() { return risks; },
   async getSummary() { return summary; },

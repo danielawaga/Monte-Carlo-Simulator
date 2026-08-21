@@ -20,7 +20,11 @@ from monte_carlo_simulator.application import (
     run_simulation_from_excel,
 )
 from monte_carlo_simulator.exceptions import RiskRegisterValidationError, ValidationError
-from monte_carlo_simulator.io import create_risk_register_workbook
+from monte_carlo_simulator.io import (
+    build_simulation_results_bundle,
+    build_simulation_results_workbook,
+    create_risk_register_workbook,
+)
 from monte_carlo_simulator.models import ExcelSimulationRun, SimulationConfig
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -89,6 +93,14 @@ class DraftSimulationConfigPayload(BaseModel):
 class DraftSimulationPayload(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
+    registerDraft: RegisterDraftPayload = Field(alias="register")
+    config: DraftSimulationConfigPayload
+
+
+class ResultsExportPayload(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    result: dict[str, object]
     registerDraft: RegisterDraftPayload = Field(alias="register")
     config: DraftSimulationConfigPayload
 
@@ -384,3 +396,34 @@ def simulate_register(payload: DraftSimulationPayload) -> dict[str, object]:
             return _payload(run, config)
     except (RiskRegisterValidationError, ValidationError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/results/export")
+def export_results(payload: ResultsExportPayload) -> Response:
+    content = build_simulation_results_workbook(
+        result=payload.result,
+        register=payload.registerDraft.model_dump(by_alias=True),
+        config=payload.config.model_dump(),
+    )
+    return Response(
+        content=content,
+        media_type=XLSX_MEDIA_TYPE,
+        headers={"Content-Disposition": 'attachment; filename="resultats_monte_carlo.xlsx"'},
+    )
+
+
+@app.post("/api/results/export-bundle")
+def export_results_bundle(payload: ResultsExportPayload) -> Response:
+    with tempfile.TemporaryDirectory(prefix="monte-carlo-bundle-") as directory:
+        source, _editable = _validate_draft(payload.registerDraft, Path(directory))
+        content = build_simulation_results_bundle(
+            result=payload.result,
+            register=payload.registerDraft.model_dump(by_alias=True),
+            config=payload.config.model_dump(),
+            register_workbook=source.read_bytes(),
+        )
+    return Response(
+        content=content,
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="dossier_resultats_monte_carlo.zip"'},
+    )

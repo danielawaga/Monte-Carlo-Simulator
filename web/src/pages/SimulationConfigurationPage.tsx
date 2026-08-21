@@ -1,4 +1,4 @@
-import { CheckCircle2, ClipboardList, Copy, Dices, Edit3, Play, RefreshCw, Save, Trash2 } from 'lucide-react';
+import { AlertTriangle, ArrowRight, CheckCircle2, ClipboardList, Copy, Dices, Edit3, Play, RefreshCw, Save, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button, Card, CardTitle, PageHeader, StatusPill } from '../components/common';
@@ -11,7 +11,7 @@ const numberOrNull=(value:string)=>value===''?null:Number(value);
 export function SimulationConfigurationPage(){
   const navigate=useNavigate();
   const [searchParams,setSearchParams]=useSearchParams();
-  const {register,config,setConfig,setResult,scenarios,saveScenario,loadScenario,deleteScenario}=useSimulation();
+  const {register,projectSource,config,setConfig,setResult,scenarios,saveScenario,loadScenario,deleteScenario}=useSimulation();
   const tab=searchParams.get('tab')==='scenarios'?'scenarios':'configuration';
   const [message,setMessage]=useState('');
   const [error,setError]=useState('');
@@ -31,9 +31,15 @@ export function SimulationConfigurationPage(){
   };
   const save=()=>{const saved=saveScenario();setMessage(`Le scénario « ${saved.name} » a été enregistré.`)};
   const load=(id:string)=>{loadScenario(id);setMessage('Le scénario et son registre ont été chargés.');setTab('configuration')};
+  const projectReady=Boolean(projectSource&&register.metadata.projectName.trim()&&register.metadata.defaultUnit.trim()&&activeItems.length);
+
+  if(!projectReady)return <>
+    <PageHeader title="Simulation" subtitle="Réglez l’exécution, documentez le scénario et lancez l’analyse à partir d’un registre validé." />
+    <Card className="simulation-blocker-card"><AlertTriangle/><div><h2>{!projectSource?'Commencez par créer ou importer un projet':'Le registre doit encore être complété'}</h2><p>{!projectSource?'La simulation utilise les informations du projet, ses postes et leurs éventuelles corrélations.':'Renseignez le nom, l’unité et au moins un poste actif avant de revenir à la configuration.'}</p><Button variant="primary" onClick={()=>navigate('/risques')}>{!projectSource?'Ouvrir le registre de risques':'Compléter le registre'}<ArrowRight/></Button></div></Card>
+  </>;
 
   return <>
-    <PageHeader title="Simulation" subtitle="Réglez l’exécution, documentez le scénario et lancez l’analyse à partir du registre courant." actions={<Button variant="primary" disabled={!activeItems.length||running} onClick={()=>void run()}><Play/>{running?'Simulation en cours…':'Lancer la simulation'}</Button>}/>
+    <PageHeader title="Simulation" subtitle="Réglez l’exécution, documentez le scénario et lancez l’analyse à partir du registre courant." />
     <div className="simulation-tabs" role="tablist" aria-label="Simulation et scénarios"><button role="tab" aria-selected={tab==='configuration'} className={tab==='configuration'?'active':''} onClick={()=>setTab('configuration')}><Dices/>Configuration</button><button role="tab" aria-selected={tab==='scenarios'} className={tab==='scenarios'?'active':''} onClick={()=>setTab('scenarios')}><Copy/>Scénarios <span>{scenarios.length}</span></button></div>
     {message?<div className="pro-success-banner"><CheckCircle2/>{message}</div>:null}
     {error?<div className="pro-error-banner simulation-banner" role="alert">{error}</div>:null}

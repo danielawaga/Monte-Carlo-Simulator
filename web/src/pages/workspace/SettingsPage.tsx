@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Bell, Database, Globe2, Save } from 'lucide-react';
 import { Button, Card, CardTitle, PageHeader, StatusPill } from '../../components/common';
+import { useTheme, type ThemePreference } from '../../state/ThemeContext';
 
 type NotificationKey = 'simulation' | 'criticalRisk' | 'approval' | 'weeklyReport';
 
@@ -14,6 +15,7 @@ function ToggleRow({ label, description, checked, onChange }: { label: string; d
 }
 
 export function SettingsPage() {
+  const { theme, setTheme } = useTheme();
   const [saved, setSaved] = useState(false);
   const [notifications, setNotifications] = useState<Record<NotificationKey, boolean>>({ simulation: true, criticalRisk: true, approval: true, weeklyReport: false });
 
@@ -37,7 +39,7 @@ export function SettingsPage() {
             <label>Fuseau horaire<select defaultValue="Africa/Casablanca"><option>Africa/Casablanca</option><option>Europe/Paris</option><option>UTC</option></select></label>
             <label>Langue de l’interface<select defaultValue="fr"><option value="fr">Français</option><option value="en">English</option></select></label>
             <label>Format des nombres<select defaultValue="fr-FR"><option value="fr-FR">1 234 567,89</option><option value="en-US">1,234,567.89</option></select></label>
-            <label>Thème<select defaultValue="system"><option value="system">Système</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label>
+            <label>Thème<select value={theme} onChange={(event) => setTheme(event.target.value as ThemePreference)}><option value="system">Système</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label>
           </div>
         </Card>
 
