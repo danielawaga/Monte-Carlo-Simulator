@@ -1,6 +1,7 @@
 export type RiskItem={id:string;category:string;risk:string;impact:string;probability:string;distribution:string;status:string;coefficient?:string;level?:'Critique'|'Élevé'|'Modéré'|'Faible'};
 export type SimulationConfig={simulations:number;seed:number;levels:number[]};
 export type AnalysisType='cost'|'duration';
+export type ProjectSource='new'|'imported'|null;
 export type DistributionName='triangular'|'pert'|'uniform'|'normal'|'lognormal'|'event';
 export type RiskDraft={
   id:string;
@@ -44,7 +45,7 @@ export type SavedScenario={
 export type RegisterValidation={valid:boolean;projectName:string;totalItems:number;activeItems:number;correlationsEnabled:boolean};
 export type SimulationSummary={mean:string;p80:string;p90:string;exceedance:string;baseline:string;reserve:string};
 export type Scenario={name:string;color:'blue'|'green';description:string;p80:string;p90:string;reserve:string};
-export type NumericRecord=Record<string,number|string|null>;
+export type NumericRecord=Record<string,number|string|boolean|null>;
 export type SimulationResponse={
   project:{name:string;analysisType:string;unit:string;baseline:number|null};
   run:{simulations:number;seed:number;confidenceLevels:number[];correlationsEnabled:boolean;generatedAt:string};
