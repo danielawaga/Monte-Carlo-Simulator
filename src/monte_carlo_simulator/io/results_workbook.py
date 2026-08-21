@@ -144,6 +144,14 @@ def _records(value: Any) -> list[Mapping[str, Any]]:
     return [item for item in value if isinstance(item, Mapping)]
 
 
+def _mapping(value: Any) -> Mapping[str, Any]:
+    return value if isinstance(value, Mapping) else {}
+
+
+def _list(value: Any) -> list[Any]:
+    return value if isinstance(value, list) else []
+
+
 def build_simulation_results_workbook(
     *, result: Mapping[str, Any], register: Mapping[str, Any], config: Mapping[str, Any]
 ) -> bytes:
@@ -151,9 +159,9 @@ def build_simulation_results_workbook(
 
     workbook = Workbook()
     workbook.remove(workbook.active)
-    project = result.get("project") if isinstance(result.get("project"), Mapping) else {}
-    run = result.get("run") if isinstance(result.get("run"), Mapping) else {}
-    metadata = register.get("metadata") if isinstance(register.get("metadata"), Mapping) else {}
+    project = _mapping(result.get("project"))
+    run = _mapping(result.get("run"))
+    metadata = _mapping(register.get("metadata"))
 
     summary = workbook.create_sheet("Synthèse")
     row = _title(
@@ -178,7 +186,7 @@ def build_simulation_results_workbook(
         ],
     )
     row = _section(summary, row, "Indicateurs statistiques", 2)
-    summary_values = result.get("summary") if isinstance(result.get("summary"), Mapping) else {}
+    summary_values = _mapping(result.get("summary"))
     _key_values(
         summary,
         row,
@@ -252,11 +260,9 @@ def build_simulation_results_workbook(
     robustness = workbook.create_sheet("Robustesse")
     baseline = _records(result.get("baselineComparison"))
     diagnostics = _records(result.get("correlationDiagnostics"))
-    correlation = (
-        register.get("correlations") if isinstance(register.get("correlations"), Mapping) else {}
-    )
-    matrix_names = correlation.get("names") if isinstance(correlation.get("names"), list) else []
-    matrix_values = correlation.get("values") if isinstance(correlation.get("values"), list) else []
+    correlation = _mapping(register.get("correlations"))
+    matrix_names = _list(correlation.get("names"))
+    matrix_values = _list(correlation.get("values"))
     width = max(
         len(baseline[0]) if baseline else 2,
         len(diagnostics[0]) if diagnostics else 2,

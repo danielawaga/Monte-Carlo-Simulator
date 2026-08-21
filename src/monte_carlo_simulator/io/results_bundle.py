@@ -23,6 +23,10 @@ def _records(value: Any) -> list[Mapping[str, Any]]:
     return [item for item in value if isinstance(item, Mapping)] if isinstance(value, list) else []
 
 
+def _mapping(value: Any) -> Mapping[str, Any]:
+    return value if isinstance(value, Mapping) else {}
+
+
 def _number(value: Any) -> float | None:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
@@ -56,13 +60,19 @@ def _empty(axis: Any, message: str) -> None:
 def _histogram(result: Mapping[str, Any], unit: str) -> bytes:
     figure, axis = _figure("Distribution du résultat total", f"Valeur totale ({unit})", "Fréquence")
     records = _records(result.get("histogram"))
-    starts = [_number(record.get("start")) for record in records]
-    ends = [_number(record.get("end")) for record in records]
-    counts = [_number(record.get("count")) for record in records]
-    if records and all(value is not None for value in [*starts, *ends, *counts]):
-        widths = [end - start for start, end in zip(starts, ends, strict=True)]
+    bins: list[tuple[float, float, float]] = []
+    for record in records:
+        start = _number(record.get("start"))
+        end = _number(record.get("end"))
+        count = _number(record.get("count"))
+        if start is not None and end is not None and count is not None:
+            bins.append((start, end, count))
+    if records and len(bins) == len(records):
+        starts = [start for start, _, _ in bins]
+        counts = [count for _, _, count in bins]
+        widths = [end - start for start, end, _ in bins]
         axis.bar(starts, counts, width=widths, align="edge", color="#fff1e8", edgecolor=ORANGE)
-        summary = result.get("summary") if isinstance(result.get("summary"), Mapping) else {}
+        summary = _mapping(result.get("summary"))
         mean = _number(summary.get("mean"))
         if mean is not None:
             axis.axvline(mean, color=ORANGE, linestyle="--", linewidth=2, label="Moyenne")
@@ -89,14 +99,12 @@ def _s_curve(result: Mapping[str, Any], unit: str) -> bytes:
         "Probabilité cumulée (%)",
     )
     records = _records(result.get("sCurve"))
-    points = [
-        (_number(record.get("amount")), _number(record.get("probability"))) for record in records
-    ]
-    points = [
-        (amount, probability)
-        for amount, probability in points
-        if amount is not None and probability is not None
-    ]
+    points: list[tuple[float, float]] = []
+    for record in records:
+        amount = _number(record.get("amount"))
+        probability = _number(record.get("probability"))
+        if amount is not None and probability is not None:
+            points.append((amount, probability))
     if points:
         axis.plot(
             [point[0] for point in points],
@@ -145,14 +153,12 @@ def _convergence(result: Mapping[str, Any], unit: str) -> bytes:
         "Convergence du percentile cible", "Nombre de tirages", f"Estimation ({unit})"
     )
     records = _records(result.get("convergence"))
-    points = [
-        (_number(record.get("draw_count")), _number(record.get("estimate"))) for record in records
-    ]
-    points = [
-        (draws, estimate)
-        for draws, estimate in points
-        if draws is not None and estimate is not None
-    ]
+    points: list[tuple[float, float]] = []
+    for record in records:
+        draws = _number(record.get("draw_count"))
+        estimate = _number(record.get("estimate"))
+        if draws is not None and estimate is not None:
+            points.append((draws, estimate))
     if points:
         axis.plot(
             [point[0] for point in points],
@@ -189,7 +195,7 @@ def build_simulation_results_bundle(
 ) -> bytes:
     """Return a ZIP containing the input register, results workbook and all charts."""
 
-    project = result.get("project") if isinstance(result.get("project"), Mapping) else {}
+    project = _mapping(result.get("project"))
     unit = str(project.get("unit") or "unité")
     results_workbook = build_simulation_results_workbook(
         result=result,
