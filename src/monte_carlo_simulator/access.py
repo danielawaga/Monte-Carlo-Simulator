@@ -3,8 +3,8 @@
 The platform keeps no server-side state: there is no user directory to
 authenticate against, and every request works in a temporary directory that is
 destroyed once the response is sent. What this module provides is therefore not
-a user system but a single shared secret, read from the environment, that both
-the HTTP API and the Streamlit interface check before doing any work.
+a user system but a single shared secret, read from the environment, that the
+HTTP API checks before doing any work.
 
 When the secret is not configured the gate stays open, so local development and
 the test suite keep working exactly as before.

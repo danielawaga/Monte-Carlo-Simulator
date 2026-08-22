@@ -12,9 +12,6 @@ htmlcov/
 *.tmp
 *.log
 
-# Deployment secrets (shared access key)
-.streamlit/secrets.toml
-
 # Build artifacts
 dist/
 build/

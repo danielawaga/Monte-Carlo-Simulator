@@ -2,15 +2,14 @@
 
 Python application for probabilistic project cost and schedule risk analysis. The project turns an Excel risk register into a simulated total distribution, decision percentiles, baseline reserves, correlation diagnostics, convergence evidence and sensitivity outputs.
 
-## Current status — S5 interface & what-if workflow
+## Current status — S6 single React interface
 
-The repository now combines three layers:
+The repository combines two layers:
 
-- a tested Python Monte Carlo engine and application service;
-- the operational Streamlit interface used to import, edit and simulate risk assumptions;
-- a React + TypeScript + Vite interface under `web/`, structured around Configuration, Results and Scenario Comparison views.
+- a tested Python Monte Carlo engine, application service and HTTP API;
+- a React + TypeScript + Vite interface under `web/`, the single operational interface, structured around Risk register, Configuration, Results and Scenario Comparison views.
 
-The S5 work focuses on making the simulator easier to explore and use interactively without moving probabilistic logic out of Python.
+The Streamlit interface that carried the S4/S5 workflow has been removed: React now covers the whole end-to-end path — import, edit, reset to the imported assumptions, validate, simulate, analyse and export — and adds scenario comparison, which Streamlit never had. The probabilistic logic stays in Python.
 
 ### Available features
 
@@ -24,8 +23,8 @@ The S5 work focuses on making the simulator easier to explore and use interactiv
 - baseline exceedance probability and non-negative percentile reserves;
 - Spearman sensitivity and tornado chart;
 - cumulative percentile convergence diagnostics;
-- interactive Plotly visualizations with exact values on hover;
-- editable assumptions after Excel import in the Streamlit workflow;
+- interactive charts with exact values on hover, rendered as SVG by the React interface;
+- editable assumptions after Excel import, with a one-click reset back to the imported register;
 - reset/re-run workflow for lightweight what-if analysis;
 - React/TypeScript/Vite frontend with a risk-register builder, unified Simulation/Scenarios workspace and Results screen;
 - reproducible synthetic acceptance case and consultant-validation protocol;
@@ -41,33 +40,12 @@ Python 3.11+ is required.
 python -m venv .venv
 source .venv/bin/activate  # Windows PowerShell: .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -e ".[dev,ui]"
+pip install -e ".[dev,web]"
 ```
 
-## Streamlit interface — operational workflow
+## React / TypeScript interface — the operational workflow
 
-```bash
-streamlit run streamlit_app/app.py
-```
-
-The Streamlit application currently provides the complete end-to-end simulation path. A consultant can:
-
-1. upload a schema-1.0 `.xlsx` risk register;
-2. import its assumptions into an editable table;
-3. modify distributions and parameters directly from the interface;
-4. reset the assumptions to the imported state;
-5. validate the edited register before simulation;
-6. choose simulation count, seed and decision confidence level;
-7. inspect interactive Plotly views of the distribution and empirical S-curve;
-8. inspect Spearman sensitivity and the tornado view;
-9. read P50/P80/P90/P95, baseline exceedance probability and reserve;
-10. download the generated decision artifacts.
-
-Start with [`docs/user_guide_30min.md`](docs/user_guide_30min.md).
-
-## React / TypeScript interface — S6 integrated workflow
-
-The `web/` directory contains the S5 frontend built with React, TypeScript and Vite.
+The `web/` directory contains the frontend built with React, TypeScript and Vite. It is the only interface: there is no second UI to keep in sync.
 
 Main routes:
 
@@ -121,14 +99,7 @@ Behaviour:
 - **key set** — every API route requires the `X-Access-Key` header and answers `401` otherwise.
   `/api/health` stays public for deployment probes and reports `accessControl: enabled | disabled`;
 - the React interface asks for the key on first load, checks it against `/api/session`, keeps it in
-  `sessionStorage` for the tab, and locks itself again if the API ever answers `401`;
-- the Streamlit interface asks for the same key before rendering anything. It also reads the key from
-  a Streamlit secrets file when the environment variable is absent:
-
-  ```toml
-  # .streamlit/secrets.toml — never commit this file
-  MCS_ACCESS_KEY = "a-long-random-shared-secret"
-  ```
+  `sessionStorage` for the tab, and locks itself again if the API ever answers `401`.
 
 The key is a deployment secret, not a per-user credential: it is shared by everyone with access, so
 rotate it by changing the variable and restarting. It gives no per-user isolation and no audit trail —
@@ -245,10 +216,9 @@ npm run build
 
 ```text
 web/                         React + TypeScript + Vite frontend
-
-streamlit_app/               Operational interactive interface
         |
-        v
+        v  HTTP (src/monte_carlo_simulator/web_api.py)
+        |
 src/monte_carlo_simulator/
   application/               Application orchestration
   models/                    Domain models
@@ -264,7 +234,7 @@ data/templates/
 docs/
 ```
 
-The interactive layers must remain thin: probabilistic rules belong in `src/monte_carlo_simulator`, not in Streamlit or React components.
+The interactive layer must remain thin: probabilistic rules belong in `src/monte_carlo_simulator`, not in React components.
 
 ## Documentation
 
@@ -285,7 +255,7 @@ The current editable-hypotheses adapter exposes imported metadata and risk rows,
 - Do not commit real risk registers without anonymization and authorization.
 - Do not add client identifiers or personal data to examples or tests.
 - `.xlsx` and `.xls` files remain ignored globally except for the public fictitious template explicitly allowed by the repository rules.
-- Set `MCS_ACCESS_KEY` before exposing the API or the interfaces beyond localhost, and keep the key out of the repository (environment variable or an ignored `.streamlit/secrets.toml`).
+- Set `MCS_ACCESS_KEY` before exposing the API or the interface beyond localhost, and keep the key out of the repository: pass it through the environment, never through a committed file.
 
 ## Next steps
 
