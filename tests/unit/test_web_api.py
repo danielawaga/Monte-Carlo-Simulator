@@ -4,13 +4,23 @@ from io import BytesIO
 from pathlib import Path
 from zipfile import ZipFile
 
+import pytest
 from fastapi.testclient import TestClient
 from openpyxl import load_workbook
 
+from monte_carlo_simulator.access import ACCESS_KEY_ENV, ACCESS_KEY_HEADER
 from monte_carlo_simulator.io import create_risk_register_workbook
 from monte_carlo_simulator.web_api import app
 
 client = TestClient(app)
+SHARED_KEY = "cle-partagee-de-test"
+
+
+@pytest.fixture
+def gated(monkeypatch: pytest.MonkeyPatch) -> str:
+    """Configure the shared secret for the duration of one test."""
+    monkeypatch.setenv(ACCESS_KEY_ENV, SHARED_KEY)
+    return SHARED_KEY
 
 
 def _draft_payload() -> dict[str, object]:
@@ -56,11 +66,16 @@ def _draft_payload() -> dict[str, object]:
     }
 
 
-def test_health_endpoint_exposes_engine_status() -> None:
+def test_health_endpoint_exposes_engine_status(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv(ACCESS_KEY_ENV, raising=False)
     response = client.get("/api/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "engine": "monte-carlo-simulator"}
+    assert response.json() == {
+        "status": "ok",
+        "engine": "monte-carlo-simulator",
+        "accessControl": "disabled",
+    }
 
 
 def test_simulation_rejects_non_xlsx_upload() -> None:
@@ -264,3 +279,69 @@ def test_complete_results_can_be_exported_to_excel() -> None:
         for name in expected:
             if name.endswith(".png"):
                 assert archive.read(name).startswith(b"\x89PNG\r\n\x1a\n")
+
+
+def test_open_deployment_serves_requests_without_a_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv(ACCESS_KEY_ENV, raising=False)
+
+    assert client.get("/api/session").status_code == 200
+
+
+def test_health_stays_public_and_announces_the_gate(gated: str) -> None:
+    response = client.get("/api/health")
+
+    assert response.status_code == 200
+    assert response.json()["accessControl"] == "enabled"
+
+
+def test_gated_deployment_rejects_requests_without_a_key(gated: str) -> None:
+    response = client.post("/api/register/validate", json=_draft_payload())
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Clé d’accès absente ou invalide."
+
+
+def test_gated_deployment_rejects_a_wrong_key(gated: str) -> None:
+    response = client.get("/api/session", headers={ACCESS_KEY_HEADER: "mauvaise-cle"})
+
+    assert response.status_code == 401
+
+
+def test_gated_deployment_accepts_the_shared_key(gated: str) -> None:
+    session = client.get("/api/session", headers={ACCESS_KEY_HEADER: gated})
+    assert session.status_code == 200
+    assert session.json() == {"authenticated": True}
+
+    validated = client.post(
+        "/api/register/validate",
+        json=_draft_payload(),
+        headers={ACCESS_KEY_HEADER: gated},
+    )
+    assert validated.status_code == 200
+    assert validated.json()["valid"] is True
+
+
+def test_gate_never_blocks_the_cors_preflight(gated: str) -> None:
+    response = client.options(
+        "/api/register/validate",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": ACCESS_KEY_HEADER,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+
+def test_rejection_stays_readable_by_the_browser(gated: str) -> None:
+    """The 401 must carry CORS headers, otherwise the interface sees a network error."""
+    response = client.post(
+        "/api/register/validate",
+        json=_draft_payload(),
+        headers={"Origin": "http://localhost:5173"},
+    )
+
+    assert response.status_code == 401
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"

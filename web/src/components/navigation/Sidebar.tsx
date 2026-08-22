@@ -5,6 +5,7 @@ import {
   ClipboardList,
   Dices,
   Home,
+  LockKeyhole,
   Monitor,
   Moon,
   PanelLeftClose,
@@ -15,6 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
+import { useAccess } from '../../state/AccessContext';
 import { useTheme, type ThemePreference } from '../../state/ThemeContext';
 
 const Logo = ({ collapsed, onNavigate }: { collapsed: boolean; onNavigate: () => void }) => (
@@ -55,6 +57,7 @@ type SidebarProps = {
 
 export function Sidebar({ collapsed, mobileOpen, onToggle, onNavigate, onMobileClose }: SidebarProps) {
   const { theme, setTheme } = useTheme();
+  const { gateEnabled, lock } = useAccess();
 
   return (
     <aside className={`sidebar ${collapsed ? 'is-collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
@@ -86,6 +89,11 @@ export function Sidebar({ collapsed, mobileOpen, onToggle, onNavigate, onMobileC
             </button>
           ))}
         </div>
+        {gateEnabled ? (
+          <button type="button" className="nav-main lock-button" onClick={lock} title={collapsed ? 'Verrouiller la session' : undefined}>
+            <LockKeyhole /><span>Verrouiller la session</span>
+          </button>
+        ) : null}
         <NavLink className="nav-main help-link" to="/aide" title={collapsed ? 'Aide & documentation' : undefined} onClick={onNavigate}>
           <CircleHelp /><span>Aide &amp; documentation</span>
         </NavLink>

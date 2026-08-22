@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import os
 import tempfile
 import zipfile
 from pathlib import Path
@@ -14,6 +15,12 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from monte_carlo_simulator.access import (
+    ACCESS_KEY_ENV,
+    configured_access_key,
+    gate_is_enabled,
+    verify_access_key,
+)
 from monte_carlo_simulator.application.hypotheses import load_editable_risk_register
 from monte_carlo_simulator.application.presentation import (
     build_confidence_levels,
@@ -1474,6 +1481,48 @@ def _render_simulation() -> None:
         )
 
 
+def _load_secret_from_streamlit() -> None:
+    """Let a Streamlit secrets file provide the shared key, env var taking priority.
+
+    Copying it into the environment keeps a single comparison path: every
+    interface then reads the secret through ``monte_carlo_simulator.access``.
+    """
+    if configured_access_key() is not None:
+        return
+    try:
+        secret = str(st.secrets[ACCESS_KEY_ENV]).strip()
+    except Exception:  # no secrets file at all, or no such entry in it
+        return
+    if secret:
+        os.environ[ACCESS_KEY_ENV] = secret
+
+
+def _require_access() -> None:
+    """Ask for the shared key before rendering anything, when a key is configured."""
+    _load_secret_from_streamlit()
+    if not gate_is_enabled() or st.session_state.get("access_granted"):
+        return
+
+    _, center, _ = st.columns([1, 2, 1])
+    with center:
+        st.markdown("### Accès protégé")
+        st.caption(
+            "Cet espace héberge des registres de risques confidentiels. "
+            "Saisissez la clé d’accès partagée fournie par l’administrateur."
+        )
+        with st.form("access-gate"):
+            submitted_key = st.text_input("Clé d’accès", type="password")
+            submitted = st.form_submit_button("Déverrouiller", type="primary")
+        if submitted:
+            if verify_access_key(submitted_key):
+                st.session_state["access_granted"] = True
+                st.rerun()
+            else:
+                st.error("Clé d’accès invalide.")
+    st.stop()
+
+
+_require_access()
 st.session_state.setdefault("active_section", "Configuration des hypothèses")
 _render_sidebar()
 active_section = st.session_state["active_section"]

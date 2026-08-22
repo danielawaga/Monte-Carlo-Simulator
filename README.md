@@ -100,6 +100,40 @@ npm run build
 
 The `/risques` route builds or imports a schema-1.0 register, validates it through the Python engine and exports a compatible `.xlsx`, including an optional correlation matrix. `/configuration` reuses that shared register, groups execution standards and scenario documentation on one screen, and sends the draft directly to the API. `/resultats` displays the resulting indicators, histogram, S-curve and sensitivity ranking. The API delegates all probabilistic rules to `run_simulation_from_excel`; React remains responsible for editing, presentation and local scenario snapshots. Secondary workspace views still use demonstration data.
 
+## Access control — shared key
+
+The platform stores nothing server-side: there is no user directory, and every request works in a
+temporary directory destroyed once the response is sent. Access control is therefore a single shared
+secret rather than a user system — enough to keep a hosted deployment from being an open upload and
+compute endpoint, without introducing a database.
+
+Set `MCS_ACCESS_KEY` to enable it:
+
+```bash
+export MCS_ACCESS_KEY="a-long-random-shared-secret"
+uvicorn monte_carlo_simulator.web_api:app --port 8000
+```
+
+Behaviour:
+
+- **key not set** — the gate stays open, so local development and the test suite are unchanged. The
+  API logs a warning at startup;
+- **key set** — every API route requires the `X-Access-Key` header and answers `401` otherwise.
+  `/api/health` stays public for deployment probes and reports `accessControl: enabled | disabled`;
+- the React interface asks for the key on first load, checks it against `/api/session`, keeps it in
+  `sessionStorage` for the tab, and locks itself again if the API ever answers `401`;
+- the Streamlit interface asks for the same key before rendering anything. It also reads the key from
+  a Streamlit secrets file when the environment variable is absent:
+
+  ```toml
+  # .streamlit/secrets.toml — never commit this file
+  MCS_ACCESS_KEY = "a-long-random-shared-secret"
+  ```
+
+The key is a deployment secret, not a per-user credential: it is shared by everyone with access, so
+rotate it by changing the variable and restarting. It gives no per-user isolation and no audit trail —
+those require the persistence layer the platform does not yet have.
+
 ## CLI
 
 ```bash
@@ -251,6 +285,7 @@ The current editable-hypotheses adapter exposes imported metadata and risk rows,
 - Do not commit real risk registers without anonymization and authorization.
 - Do not add client identifiers or personal data to examples or tests.
 - `.xlsx` and `.xls` files remain ignored globally except for the public fictitious template explicitly allowed by the repository rules.
+- Set `MCS_ACCESS_KEY` before exposing the API or the interfaces beyond localhost, and keep the key out of the repository (environment variable or an ignored `.streamlit/secrets.toml`).
 
 ## Next steps
 
