@@ -38,7 +38,7 @@ body { background: var(--app-bg); color: var(--text); transition: background-col
   width: auto;
   max-width: none;
   color: var(--text);
-  background-image: linear-gradient(var(--background-overlay), var(--background-overlay)), url('/Monte%20Carlo.png');
+  background-image: linear-gradient(var(--background-overlay), var(--background-overlay)), url('/monte-carlo.png');
   background-size: cover;
   background-position: center;
   background-attachment: fixed;

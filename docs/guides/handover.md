@@ -26,7 +26,8 @@ web/                interface React + TypeScript (seule interface)
 scripts/            génération de cas et validation reproductible
 tests/              tests unitaires et d'intégration
 data/templates/     modèles publics et fictifs
-docs/               guides, méthode et protocoles
+docs/               guides/, reference/, validation/ et archive/
+reports/            livrables générés (rapport S5, étude de cas)
 ```
 
 Le principe important est que l'interface ne contient pas le moteur métier. Elle appelle l'API HTTP (`web_api.py`), qui délègue à `run_simulation_from_excel` — le même workflow que la CLI.

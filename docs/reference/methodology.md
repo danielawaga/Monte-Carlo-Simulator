@@ -205,7 +205,7 @@ Le niveau de décision affiché dans l'interface peut être P50, P80, P90 ou P95
 
 Les tests automatisés vérifient les invariants logiciels et numériques. La crédibilité des hypothèses nécessite une validation terrain séparée.
 
-Le protocole `docs/consultant_validation_workshop.md` demande notamment de documenter :
+Le protocole [`../archive/consultant_validation_workshop.md`](../archive/consultant_validation_workshop.md) demande notamment de documenter :
 
 - les paramètres contestés ;
 - la justification des corrélations non nulles ;

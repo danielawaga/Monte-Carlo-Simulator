@@ -191,7 +191,7 @@ Outputs are written under `data/output/s3_acceptance/`. This case validates the 
 
 For field validation, use:
 
-- [`docs/consultant_validation_workshop.md`](docs/consultant_validation_workshop.md);
+- [`docs/archive/consultant_validation_workshop.md`](docs/archive/consultant_validation_workshop.md);
 - [`data/templates/consultant_validation_log.csv`](data/templates/consultant_validation_log.csv).
 
 ## Quality
@@ -228,23 +228,37 @@ src/monte_carlo_simulator/
   io/                        Excel schema, validation and exports
   visualization/             Static/export visualizations
 
-tests/
-scripts/
-data/templates/
+tests/                       unit/ and integration/ suites
+scripts/                     register generators and case-study tooling
+data/
+  templates/                 public fictitious workbooks
+  input/                     sample inputs
+  output/                    runtime outputs — generated, never versioned
 docs/
+  guides/                    how to run and hand over the project
+  reference/                 architecture, methodology, documented case
+  validation/                published validation evidence
+  archive/                   dated deliverables kept as-is
+reports/                     generated deliverables (S5 report, case study)
 ```
+
+Two directory names carry a deliberate distinction: `data/output/` holds everything a run
+generates and is never versioned, while `reports/` holds the finished deliverables that are.
 
 The interactive layer must remain thin: probabilistic rules belong in `src/monte_carlo_simulator`, not in React components.
 
 ## Documentation
 
-- [30-minute user guide](docs/user_guide_30min.md)
-- [Detailed Excel/schema guide](docs/user_guide.md)
-- [Consultant-facing methodology note](docs/methodology_note.md)
-- [Technical methodology](docs/methodology.md)
-- [Technical handover](docs/handover.md)
-- [S4 oral restitution script](docs/s4_restitution.md)
+Start from the [documentation index](docs/README.md).
+
+- [30-minute user guide](docs/guides/user_guide_30min.md)
+- [Detailed Excel/schema guide](docs/guides/user_guide.md)
+- [Technical handover](docs/guides/handover.md)
+- [Consultant-facing methodology note](docs/reference/methodology_note.md)
+- [Technical methodology](docs/reference/methodology.md)
+- [Architecture](docs/reference/architecture.md)
 - [React frontend notes](web/README.md)
+- [Dated deliverables and working notes](docs/archive/)
 
 ## Known limitation
 
