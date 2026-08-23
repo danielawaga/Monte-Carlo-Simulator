@@ -1,0 +1,63 @@
+"""Local persistence for the on-premises deployment."""
+
+from monte_carlo_simulator.storage.accounts import (
+    AccountError,
+    Role,
+    User,
+    authenticate,
+    change_password,
+    close_session,
+    count_active_admins,
+    create_first_admin,
+    create_user,
+    get_user,
+    get_user_by_email,
+    has_any_user,
+    list_users,
+    open_session,
+    purge_expired_sessions,
+    revoke_all_sessions,
+    set_active,
+    set_role,
+    user_for_session,
+)
+from monte_carlo_simulator.storage.database import (
+    connect,
+    data_directory,
+    database_path,
+    session_scope,
+)
+from monte_carlo_simulator.storage.passwords import (
+    hash_password,
+    password_issue,
+    verify_password,
+)
+
+__all__ = [
+    "AccountError",
+    "Role",
+    "User",
+    "authenticate",
+    "change_password",
+    "close_session",
+    "connect",
+    "count_active_admins",
+    "create_first_admin",
+    "create_user",
+    "data_directory",
+    "database_path",
+    "get_user",
+    "get_user_by_email",
+    "has_any_user",
+    "hash_password",
+    "list_users",
+    "open_session",
+    "password_issue",
+    "purge_expired_sessions",
+    "revoke_all_sessions",
+    "session_scope",
+    "set_active",
+    "set_role",
+    "user_for_session",
+    "verify_password",
+]
