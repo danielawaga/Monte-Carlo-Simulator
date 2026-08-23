@@ -249,3 +249,60 @@ class TestSchemaUpgrade:
             assert projects.list_registers(handle) == []
         finally:
             handle.close()
+
+    def test_a_version_one_database_loses_its_credentials(self, tmp_path: Path) -> None:
+        """Version 1 held accounts and no registers at all.
+
+        Requiring a registers table before cleaning up would skip this case and
+        leave password and session-token hashes in a file the application can no
+        longer manage — credentials outliving the feature that created them.
+        """
+        path = tmp_path / "v1.sqlite3"
+        legacy = sqlite3.connect(path)
+        legacy.executescript(
+            """
+            CREATE TABLE schema_version (version INTEGER NOT NULL);
+            INSERT INTO schema_version (version) VALUES (1);
+            CREATE TABLE users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT NOT NULL UNIQUE,
+                full_name TEXT NOT NULL,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL,
+                is_active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                last_login_at TEXT
+            );
+            CREATE TABLE sessions (
+                token_hash TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                created_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL
+            );
+            INSERT INTO users (email, full_name, password_hash, role, created_at)
+                VALUES ('awa@exemple.fr', 'Awa Diallo', 'scrypt$secret', 'admin', '2026-08-23');
+            INSERT INTO sessions (token_hash, user_id, created_at, expires_at)
+                VALUES ('jeton', 1, '2026-08-23', '2026-08-24');
+            """
+        )
+        legacy.commit()
+        legacy.close()
+
+        upgraded = database.connect(path)
+        try:
+            remaining = {
+                row[0]
+                for row in upgraded.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'"
+                ).fetchall()
+            }
+
+            assert "users" not in remaining, "les empreintes de mot de passe doivent disparaître"
+            assert "sessions" not in remaining
+            assert {"registers", "runs"} <= remaining, "les nouvelles tables doivent exister"
+
+            version = upgraded.execute("SELECT version FROM schema_version").fetchone()["version"]
+            assert version == database.SCHEMA_VERSION
+            assert projects.save_register(upgraded, name="Neuf", payload=PAYLOAD).id
+        finally:
+            upgraded.close()

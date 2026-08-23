@@ -102,8 +102,11 @@ monte-carlo-simulator          # picks a free port, opens the browser
 The launcher takes the first free port at or after 8000, so a second launch does not fail with a
 stack trace on a machine nobody is watching.
 
-`--host 0.0.0.0` still exists and still exposes the service to the whole subnet **in clear text**.
-Do not use it without TLS in front.
+**The listening address is fixed to `127.0.0.1` and cannot be changed from the command line.** The
+application has no authentication — that went with the shared deployment — so any other bind address
+would let every device on the subnet list, overwrite and delete the saved registers. TLS would not
+make that safe: it encrypts the connection, it does not decide who may use it. Reaching the tool from
+another machine would need an authentication layer back, which is a deliberate change and not a flag.
 
 ### A double-clickable executable
 
@@ -141,8 +144,9 @@ The database lives in a per-machine data directory — `%LOCALAPPDATA%\MonteCarl
 executable can unpack itself read-only. Override it with `MCS_DATA_DIR`. **That one file is the whole
 state of the installation: back it up and you have backed up everything.**
 
-An installation created by the earlier shared version upgrades in place: the accounts and sessions
-are dropped, the saved registers and their run history are kept.
+An installation created by either earlier version upgrades in place: the accounts, the password
+hashes and the session tokens are dropped — including from a version-1 database, which held accounts
+and no registers at all — while the saved registers and their run history are kept.
 
 ### What this does not protect
 
@@ -315,7 +319,7 @@ The current editable-hypotheses adapter exposes imported metadata and risk rows,
 - Do not add client identifiers or personal data to examples or tests.
 - `.xlsx` and `.xls` files remain ignored globally except for the public fictitious template explicitly allowed by the repository rules.
 - The local database holds client risk registers: back up `MCS_DATA_DIR` like any other confidential asset, never commit it, and rely on full-disk encryption to protect it at rest.
-- Keep the service on `127.0.0.1`. Exposing it with `--host 0.0.0.0` sends registers over the network in clear text and needs TLS in front.
+- The service binds to `127.0.0.1` and cannot be reconfigured: without authentication, any network bind would expose the registers to the whole subnet.
 
 ## Next steps
 

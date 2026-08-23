@@ -144,18 +144,38 @@ _REBUILD_WITHOUT_ACCOUNTS = (
     """,
     "DROP TABLE registers_v2",
     "DROP TABLE runs_v2",
-    "DROP TABLE IF EXISTS sessions",
-    "DROP TABLE IF EXISTS users",
 )
 
 
-def _drop_accounts(connection: sqlite3.Connection) -> None:
-    """Rebuild the tables an earlier version gave author columns.
+def _has_column(connection: sqlite3.Connection, table: str, column: str) -> bool:
+    return any(row[1] == column for row in connection.execute(f"PRAGMA table_info({table})"))
 
-    Version 2 belonged to a shared installation with user accounts; a per-desk
-    copy has neither. ``CREATE TABLE IF NOT EXISTS`` leaves an existing table
-    untouched, so the obsolete columns are dropped by rebuilding — and the
-    registers already saved must survive it.
+
+def _remove_accounts(connection: sqlite3.Connection) -> None:
+    """Erase everything the shared deployment left behind.
+
+    Two distinct legacies, and they do not travel together. Version 1 held only
+    accounts, with no registers at all; version 2 added registers carrying
+    author columns. Requiring registers to be present would skip version 1
+    entirely and leave password and session-token hashes in a file the
+    application can no longer manage — credentials outliving the feature that
+    created them.
+    """
+    if _table_exists(connection, "registers") and _has_column(
+        connection, "registers", "created_by"
+    ):
+        _rebuild_without_author_columns(connection)
+
+    connection.execute("DROP TABLE IF EXISTS sessions")
+    connection.execute("DROP TABLE IF EXISTS users")
+
+
+def _rebuild_without_author_columns(connection: sqlite3.Connection) -> None:
+    """Drop the author columns a version-2 database gave the project tables.
+
+    ``CREATE TABLE IF NOT EXISTS`` leaves an existing table untouched, so the
+    obsolete columns go by rebuilding — and the registers already saved must
+    survive it.
     """
     # Foreign keys are suspended for the rebuild: runs reference registers, and
     # renaming the parent mid-flight would otherwise break the constraint.
@@ -177,8 +197,8 @@ def _drop_accounts(connection: sqlite3.Connection) -> None:
 def _apply_schema(connection: sqlite3.Connection) -> None:
     """Create anything missing, migrate anything obsolete, record the version."""
     version = _recorded_version(connection)
-    if version is not None and version < 3 and _table_exists(connection, "registers"):
-        _drop_accounts(connection)
+    if version is not None and version < SCHEMA_VERSION:
+        _remove_accounts(connection)
 
     connection.executescript(SCHEMA)
     if version is None:
