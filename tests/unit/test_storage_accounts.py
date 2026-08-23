@@ -363,3 +363,31 @@ class TestConcurrentSetup:
             assert recovered.is_admin is True
         finally:
             handle.close()
+
+
+class TestThreadHandover:
+    def test_a_connection_survives_being_used_from_another_thread(self, tmp_path: Path) -> None:
+        """FastAPI hands a synchronous dependency and its endpoint different threads.
+
+        A connection that refuses to cross threads therefore fails the request as
+        soon as the threadpool has more than one thread busy — which sequential
+        command-line calls hide and a browser loading several assets exposes.
+        """
+        handle = database.connect(tmp_path / "handover.sqlite3")
+        outcome: dict[str, object] = {}
+
+        def read_from_another_thread() -> None:
+            try:
+                outcome["value"] = accounts.has_any_user(handle)
+            except Exception as exc:  # noqa: BLE001 - the failure is the subject
+                outcome["error"] = exc
+
+        worker = threading.Thread(target=read_from_another_thread)
+        worker.start()
+        worker.join(timeout=10)
+        handle.close()
+
+        assert "error" not in outcome, (
+            f"la connexion refuse de changer de fil : {outcome.get('error')}"
+        )
+        assert outcome["value"] is False

@@ -12,7 +12,11 @@ import pandas as pd
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.responses import Response as StarletteResponse
+from starlette.types import Scope
 
 from monte_carlo_simulator.application import (
     EditableRiskRegister,
@@ -26,6 +30,7 @@ from monte_carlo_simulator.io import (
     create_risk_register_workbook,
 )
 from monte_carlo_simulator.models import ExcelSimulationRun, SimulationConfig
+from monte_carlo_simulator.resources import frontend_directory, resource_path
 from monte_carlo_simulator.storage import accounts, projects
 from monte_carlo_simulator.web_auth import (
     Connection,
@@ -38,8 +43,7 @@ from monte_carlo_simulator.web_auth import (
     issue_session_cookie,
 )
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-TEMPLATE_PATH = REPOSITORY_ROOT / "data" / "templates" / "risk_register_template.xlsx"
+TEMPLATE_PATH = resource_path("data", "templates", "risk_register_template.xlsx")
 MAX_UPLOAD_BYTES = 12 * 1024 * 1024
 DEFAULT_LEVELS = (0.50, 0.80, 0.90, 0.95)
 XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -720,3 +724,39 @@ def export_results_bundle(payload: ResultsExportPayload) -> Response:
         media_type="application/zip",
         headers={"Content-Disposition": 'attachment; filename="dossier_resultats_monte_carlo.zip"'},
     )
+
+
+class SinglePageFiles(StaticFiles):
+    """Static files with a real single-page-application fallback.
+
+    ``StaticFiles(html=True)`` only serves an index for *directory* requests; an
+    unknown path still answers 404. That breaks the routes the interface owns —
+    opening or refreshing ``/risques`` would fail — so an unmatched GET returns
+    ``index.html`` and lets the router decide. Anything under ``/api`` is left
+    alone: a mistyped endpoint must stay a 404, not silently return a web page.
+    """
+
+    async def get_response(self, path: str, scope: Scope) -> StarletteResponse:
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            if exc.status_code != 404 or path.startswith("api/"):
+                raise
+            return await super().get_response("index.html", scope)
+
+
+def mount_frontend() -> bool:
+    """Serve the built interface from this same process, when it is present.
+
+    Mounted last and on purpose: a catch-all at ``/`` would otherwise swallow
+    every ``/api`` route declared above it. Returning False simply means the
+    interface is served elsewhere — by the Vite dev server during development.
+    """
+    directory = frontend_directory()
+    if directory is None:
+        return False
+    app.mount("/", SinglePageFiles(directory=directory, html=True), name="frontend")
+    return True
+
+
+mount_frontend()

@@ -100,7 +100,16 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
     """Open the database, creating the file and schema on first use."""
     target = path or database_path()
     target.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(target, isolation_level=None)
+    connection = sqlite3.connect(
+        target,
+        isolation_level=None,
+        # FastAPI runs a synchronous dependency and its endpoint on different
+        # threadpool threads, so the connection opened by the dependency is used
+        # from another thread — sequentially, never concurrently, since it
+        # belongs to a single request. SQLite's same-thread guard is too strict
+        # for that pattern and would fail the request under any real load.
+        check_same_thread=False,
+    )
     connection.row_factory = sqlite3.Row
     # Foreign keys are off by default in SQLite and must be enabled per connection.
     connection.execute("PRAGMA foreign_keys = ON")

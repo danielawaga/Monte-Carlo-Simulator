@@ -17,6 +17,9 @@ dependencies = [
   "openpyxl>=3.1",
 ]
 
+[project.scripts]
+monte-carlo-simulator = "monte_carlo_simulator.launcher:main"
+
 [project.optional-dependencies]
 dev = [
   "pytest>=8.2",
@@ -25,6 +28,9 @@ dev = [
   "mypy>=1.10",
   "pre-commit>=3.7",
   "jupyter>=1.0",
+]
+packaging = [
+  "pyinstaller>=6.6",
 ]
 web = [
   "fastapi>=0.115",
