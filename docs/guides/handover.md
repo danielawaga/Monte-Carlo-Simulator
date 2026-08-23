@@ -23,7 +23,7 @@ src/monte_carlo_simulator/
   visualization/   graphiques statiques exportés
   application/     orchestration des workflows
 web/                interface React + TypeScript (seule interface)
-  storage/          comptes locaux, sessions et base SQLite
+  storage/          base SQLite locale : registres enregistrés et historique
 scripts/            génération de cas et validation reproductible
 tests/              tests unitaires et d'intégration
 data/templates/     modèles publics et fictifs

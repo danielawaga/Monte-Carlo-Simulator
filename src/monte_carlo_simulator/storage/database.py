@@ -1,9 +1,10 @@
-"""SQLite storage for the on-premises deployment.
+"""SQLite storage for the per-desk installation.
 
-The simulator is installed on one designated machine of the company network and
-reached from a browser by every member, so the database is a single local file
-rather than a service. SQLite is sized for that: a handful of concurrent users
-on one host, no server to administer, one file to back up.
+Each desk runs its own copy, listening on the loopback interface only, so
+nothing travels over the network and the database is simply a local file. That
+file is what makes a saved register and a run history outlive the browser: the
+interface used to keep drafts in ``localStorage``, which vanishes with the
+browsing data and cannot be backed up.
 
 The file never lives inside the application bundle — a packaged executable
 unpacks itself into a read-only temporary directory — so it is written to a
@@ -22,42 +23,19 @@ DATA_DIR_ENV = "MCS_DATA_DIR"
 DATABASE_FILENAME = "monte_carlo.sqlite3"
 APPLICATION_DIRNAME = "MonteCarloSimulator"
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (
     version INTEGER NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS users (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    email         TEXT    NOT NULL UNIQUE,
-    full_name     TEXT    NOT NULL,
-    password_hash TEXT    NOT NULL,
-    role          TEXT    NOT NULL CHECK (role IN ('admin', 'member')),
-    is_active     INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
-    created_at    TEXT    NOT NULL,
-    last_login_at TEXT
-);
-
-CREATE TABLE IF NOT EXISTS sessions (
-    token_hash TEXT    PRIMARY KEY,
-    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    created_at TEXT    NOT NULL,
-    expires_at TEXT    NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
-CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at);
-
 CREATE TABLE IF NOT EXISTS registers (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    name        TEXT    NOT NULL,
-    payload     TEXT    NOT NULL,
-    created_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    created_at  TEXT    NOT NULL,
-    updated_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    updated_at  TEXT    NOT NULL
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT    NOT NULL,
+    payload    TEXT    NOT NULL,
+    created_at TEXT    NOT NULL,
+    updated_at TEXT    NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS runs (
@@ -66,7 +44,6 @@ CREATE TABLE IF NOT EXISTS runs (
     label       TEXT    NOT NULL,
     config      TEXT    NOT NULL,
     result      TEXT    NOT NULL,
-    created_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at  TEXT    NOT NULL
 );
 
@@ -121,19 +98,92 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
     return connection
 
 
-def _apply_schema(connection: sqlite3.Connection) -> None:
-    """Create anything missing and record the schema version.
+def _table_exists(connection: sqlite3.Connection, name: str) -> bool:
+    row = connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (name,)
+    ).fetchone()
+    return row is not None
 
-    Every statement is ``IF NOT EXISTS``, so replaying the script on an older
-    database is itself the migration — which holds only as long as versions stay
-    purely additive. Renaming or dropping a column would need real migration
-    steps here, and the recorded version is what would drive them.
-    """
-    connection.executescript(SCHEMA)
+
+def _recorded_version(connection: sqlite3.Connection) -> int | None:
+    if not _table_exists(connection, "schema_version"):
+        return None
     row = connection.execute("SELECT version FROM schema_version").fetchone()
-    if row is None:
+    return int(row["version"]) if row else None
+
+
+_REBUILD_WITHOUT_ACCOUNTS = (
+    "ALTER TABLE registers RENAME TO registers_v2",
+    "ALTER TABLE runs RENAME TO runs_v2",
+    """
+    CREATE TABLE registers (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        name       TEXT    NOT NULL,
+        payload    TEXT    NOT NULL,
+        created_at TEXT    NOT NULL,
+        updated_at TEXT    NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE runs (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        register_id INTEGER REFERENCES registers(id) ON DELETE SET NULL,
+        label       TEXT    NOT NULL,
+        config      TEXT    NOT NULL,
+        result      TEXT    NOT NULL,
+        created_at  TEXT    NOT NULL
+    )
+    """,
+    """
+    INSERT INTO registers (id, name, payload, created_at, updated_at)
+        SELECT id, name, payload, created_at, updated_at FROM registers_v2
+    """,
+    """
+    INSERT INTO runs (id, register_id, label, config, result, created_at)
+        SELECT id, register_id, label, config, result, created_at FROM runs_v2
+    """,
+    "DROP TABLE registers_v2",
+    "DROP TABLE runs_v2",
+    "DROP TABLE IF EXISTS sessions",
+    "DROP TABLE IF EXISTS users",
+)
+
+
+def _drop_accounts(connection: sqlite3.Connection) -> None:
+    """Rebuild the tables an earlier version gave author columns.
+
+    Version 2 belonged to a shared installation with user accounts; a per-desk
+    copy has neither. ``CREATE TABLE IF NOT EXISTS`` leaves an existing table
+    untouched, so the obsolete columns are dropped by rebuilding — and the
+    registers already saved must survive it.
+    """
+    # Foreign keys are suspended for the rebuild: runs reference registers, and
+    # renaming the parent mid-flight would otherwise break the constraint.
+    connection.execute("PRAGMA foreign_keys = OFF")
+    # Statements are issued one by one rather than through executescript, which
+    # commits any pending transaction before running — the rebuild would then
+    # not be atomic, and a failure halfway would leave the database in pieces.
+    connection.execute("BEGIN IMMEDIATE")
+    try:
+        for statement in _REBUILD_WITHOUT_ACCOUNTS:
+            connection.execute(statement)
+    except BaseException:
+        connection.execute("ROLLBACK")
+        raise
+    connection.execute("COMMIT")
+    connection.execute("PRAGMA foreign_keys = ON")
+
+
+def _apply_schema(connection: sqlite3.Connection) -> None:
+    """Create anything missing, migrate anything obsolete, record the version."""
+    version = _recorded_version(connection)
+    if version is not None and version < 3 and _table_exists(connection, "registers"):
+        _drop_accounts(connection)
+
+    connection.executescript(SCHEMA)
+    if version is None:
         connection.execute("INSERT INTO schema_version (version) VALUES (?)", (SCHEMA_VERSION,))
-    elif row["version"] < SCHEMA_VERSION:
+    elif version < SCHEMA_VERSION:
         connection.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))
 
 

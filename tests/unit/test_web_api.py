@@ -13,50 +13,15 @@ from monte_carlo_simulator.io import create_risk_register_workbook
 from monte_carlo_simulator.storage import database
 from monte_carlo_simulator.web_api import app
 
-ADMIN = {"email": "awa@exemple.fr", "fullName": "Awa Diallo", "password": "motdepasse-solide"}
-MEMBER = {
-    "email": "claire@exemple.fr",
-    "fullName": "Claire Martin",
-    "password": "motdepasse-solide",
-}
-
 
 @pytest.fixture(autouse=True)
 def isolated_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Point every test at its own database.
-
-    Without this the suite would write into the real per-machine data directory
-    of whoever runs it.
-    """
     monkeypatch.setenv(database.DATA_DIR_ENV, str(tmp_path / "data"))
 
 
 @pytest.fixture
-def anonymous() -> Iterator[TestClient]:
+def client() -> Iterator[TestClient]:
     with TestClient(app) as http:
-        yield http
-
-
-@pytest.fixture
-def admin(anonymous: TestClient) -> TestClient:
-    """A client signed in as the founding administrator."""
-    response = anonymous.post("/api/setup", json=ADMIN)
-    assert response.status_code == 200, response.text
-    return anonymous
-
-
-@pytest.fixture
-def member(admin: TestClient) -> Iterator[TestClient]:
-    """A separate client signed in as an ordinary member."""
-    assert admin.post("/api/users", json=MEMBER).status_code == 200
-    with TestClient(app) as http:
-        assert (
-            http.post(
-                "/api/auth/login",
-                json={"email": MEMBER["email"], "password": MEMBER["password"]},
-            ).status_code
-            == 200
-        )
         yield http
 
 
@@ -103,20 +68,15 @@ def _draft_payload() -> dict[str, object]:
     }
 
 
-def test_health_reports_a_fresh_installation(anonymous: TestClient) -> None:
-    response = anonymous.get("/api/health")
+def test_health_reports_a_working_engine(client: TestClient) -> None:
+    response = client.get("/api/health")
 
     assert response.status_code == 200
-    assert response.json() == {
-        "status": "ok",
-        "engine": "monte-carlo-simulator",
-        "setupRequired": True,
-        "authenticated": False,
-    }
+    assert response.json() == {"status": "ok", "engine": "monte-carlo-simulator"}
 
 
-def test_simulation_rejects_non_xlsx_upload(admin: TestClient) -> None:
-    response = admin.post(
+def test_simulation_rejects_non_xlsx_upload(client: TestClient) -> None:
+    response = client.post(
         "/api/simulate",
         files={"file": ("register.csv", b"name,value", "text/csv")},
     )
@@ -125,8 +85,8 @@ def test_simulation_rejects_non_xlsx_upload(admin: TestClient) -> None:
     assert response.json()["detail"] == "Seuls les registres .xlsx sont acceptés."
 
 
-def test_template_endpoint_returns_excel_workbook(admin: TestClient) -> None:
-    response = admin.get("/api/template")
+def test_template_endpoint_returns_excel_workbook(client: TestClient) -> None:
+    response = client.get("/api/template")
 
     assert response.status_code == 200
     assert response.headers["content-disposition"].endswith(
@@ -136,7 +96,7 @@ def test_template_endpoint_returns_excel_workbook(admin: TestClient) -> None:
 
 
 def test_simulation_endpoint_runs_engine_and_preserves_correlations(
-    admin: TestClient, tmp_path: Path
+    client: TestClient, tmp_path: Path
 ) -> None:
     workbook_path = tmp_path / "correlated.xlsx"
     create_risk_register_workbook(
@@ -161,7 +121,7 @@ def test_simulation_endpoint_runs_engine_and_preserves_correlations(
     workbook.close()
 
     with workbook_path.open("rb") as stream:
-        response = admin.post(
+        response = client.post(
             "/api/simulate",
             files={
                 "file": (
@@ -192,10 +152,10 @@ def test_simulation_endpoint_runs_engine_and_preserves_correlations(
     assert payload["sCurve"]
 
 
-def test_register_draft_can_be_validated_exported_and_imported(admin: TestClient) -> None:
+def test_register_draft_can_be_validated_exported_and_imported(client: TestClient) -> None:
     draft = _draft_payload()
 
-    validation = admin.post("/api/register/validate", json=draft)
+    validation = client.post("/api/register/validate", json=draft)
     assert validation.status_code == 200
     assert validation.json() == {
         "valid": True,
@@ -205,11 +165,11 @@ def test_register_draft_can_be_validated_exported_and_imported(admin: TestClient
         "correlationsEnabled": True,
     }
 
-    exported = admin.post("/api/register/export", json=draft)
+    exported = client.post("/api/register/export", json=draft)
     assert exported.status_code == 200
     assert exported.content.startswith(b"PK")
 
-    imported = admin.post(
+    imported = client.post(
         "/api/register/import",
         files={
             "file": (
@@ -226,8 +186,8 @@ def test_register_draft_can_be_validated_exported_and_imported(admin: TestClient
     assert imported_register["correlations"]["values"] == [[1.0, 0.2], [0.2, 1.0]]
 
 
-def test_register_draft_can_launch_simulation(admin: TestClient) -> None:
-    response = admin.post(
+def test_register_draft_can_launch_simulation(client: TestClient) -> None:
+    response = client.post(
         "/api/register/simulate",
         json={
             "register": _draft_payload(),
@@ -249,7 +209,7 @@ def test_register_draft_can_launch_simulation(admin: TestClient) -> None:
     assert payload["run"]["correlationsEnabled"] is True
 
 
-def test_complete_results_can_be_exported_to_excel(admin: TestClient) -> None:
+def test_complete_results_can_be_exported_to_excel(client: TestClient) -> None:
     config = {
         "simulations": 120,
         "seed": 20260820,
@@ -258,13 +218,13 @@ def test_complete_results_can_be_exported_to_excel(admin: TestClient) -> None:
         "exceedanceThreshold": 1800,
         "convergenceTolerance": 1,
     }
-    simulated = admin.post(
+    simulated = client.post(
         "/api/register/simulate",
         json={"register": _draft_payload(), "config": config},
     )
     assert simulated.status_code == 200
 
-    exported = admin.post(
+    exported = client.post(
         "/api/results/export",
         json={
             "result": simulated.json(),
@@ -291,7 +251,7 @@ def test_complete_results_can_be_exported_to_excel(admin: TestClient) -> None:
     assert workbook["Robustesse"]["B14"].value == 1
     workbook.close()
 
-    bundle = admin.post(
+    bundle = client.post(
         "/api/results/export-bundle",
         json={
             "result": simulated.json(),

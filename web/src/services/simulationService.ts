@@ -1,5 +1,4 @@
 import { comparison, risks, scenarios, summary } from '../data/mockSimulation';
-import { apiFetch } from './authSession';
 import type { RegisterValidation, RiskRegisterDraft, SimulationConfig, SimulationResponse, SimulationWorkspaceConfig } from '../types';
 
 async function apiError(response:Response,fallback:string){
@@ -13,7 +12,7 @@ async function simulate(file: File, config: SimulationConfig): Promise<Simulatio
   form.append('simulations', String(config.simulations));
   form.append('seed', String(config.seed));
   form.append('confidence_levels', config.levels.map((level) => level / 100).join(','));
-  const response = await apiFetch('/api/simulate', { method: 'POST', body: form });
+  const response = await fetch('/api/simulate', { method: 'POST', body: form });
   if (!response.ok) {
     const payload = await response.json().catch(() => null) as { detail?: string } | null;
     throw new Error(payload?.detail ?? `La simulation a échoué (${response.status}).`);
@@ -23,26 +22,26 @@ async function simulate(file: File, config: SimulationConfig): Promise<Simulatio
 
 async function importRegister(file:File):Promise<RiskRegisterDraft>{
   const form=new FormData();form.append('file',file);
-  const response=await apiFetch('/api/register/import',{method:'POST',body:form});
+  const response=await fetch('/api/register/import',{method:'POST',body:form});
   if(!response.ok)throw await apiError(response,`L’import a échoué (${response.status}).`);
   const payload=await response.json() as {register:RiskRegisterDraft};
   return payload.register;
 }
 
 async function validateRegister(register:RiskRegisterDraft):Promise<RegisterValidation>{
-  const response=await apiFetch('/api/register/validate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(register)});
+  const response=await fetch('/api/register/validate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(register)});
   if(!response.ok)throw await apiError(response,`La validation a échoué (${response.status}).`);
   return response.json() as Promise<RegisterValidation>;
 }
 
 async function exportRegister(register:RiskRegisterDraft):Promise<Blob>{
-  const response=await apiFetch('/api/register/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(register)});
+  const response=await fetch('/api/register/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(register)});
   if(!response.ok)throw await apiError(response,`L’export a échoué (${response.status}).`);
   return response.blob();
 }
 
 async function simulateDraft(register:RiskRegisterDraft,config:SimulationWorkspaceConfig):Promise<SimulationResponse>{
-  const response=await apiFetch('/api/register/simulate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({register,config})});
+  const response=await fetch('/api/register/simulate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({register,config})});
   if(!response.ok)throw await apiError(response,`La simulation a échoué (${response.status}).`);
   return response.json() as Promise<SimulationResponse>;
 }
@@ -52,7 +51,7 @@ async function exportResults(
   register: RiskRegisterDraft,
   config: SimulationWorkspaceConfig,
 ): Promise<Blob> {
-  const response = await apiFetch('/api/results/export', {
+  const response = await fetch('/api/results/export', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ result, register, config }),
@@ -66,7 +65,7 @@ async function exportResultsBundle(
   register: RiskRegisterDraft,
   config: SimulationWorkspaceConfig,
 ): Promise<Blob> {
-  const response = await apiFetch('/api/results/export-bundle', {
+  const response = await fetch('/api/results/export-bundle', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ result, register, config }),
