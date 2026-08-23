@@ -1,0 +1,88 @@
+name: Executable
+
+# Builds the double-clickable Windows executable. Runs on demand and on tags,
+# not on every push: the job is minutes long and its output is a release
+# artifact, not a gate on the code.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # The interface must exist before PyInstaller runs: the spec bundles
+      # web/dist as data, and a missing folder fails the build outright.
+      - name: Build the interface
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install the project and PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[web]"
+          pip install pyinstaller
+
+      - name: Build the executable
+        run: pyinstaller packaging/monte-carlo-simulator.spec --noconfirm
+
+      # A binary that builds but dies on startup is worthless, so the job proves
+      # it actually serves before publishing anything.
+      - name: Smoke-test the executable
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD "dist\MonteCarloSimulator.exe"
+          $env:MCS_DATA_DIR = Join-Path $env:RUNNER_TEMP "mcs-smoke"
+          $env:MCS_PORT = "8123"
+          $process = Start-Process -FilePath $exe -ArgumentList "--no-browser" -PassThru
+          try {
+            $ready = $false
+            foreach ($attempt in 1..30) {
+              Start-Sleep -Seconds 2
+              try {
+                $health = Invoke-RestMethod -Uri "http://127.0.0.1:8123/api/health" -TimeoutSec 5
+                if ($health.status -eq "ok") { $ready = $true; break }
+              } catch { }
+            }
+            if (-not $ready) { throw "L'exécutable n'a pas répondu sur /api/health." }
+
+            # The interface must be served by this same process, deep routes included.
+            foreach ($route in @("/", "/risques", "/resultats")) {
+              $page = Invoke-WebRequest -Uri "http://127.0.0.1:8123$route" -TimeoutSec 10
+              if ($page.StatusCode -ne 200) { throw "$route a répondu $($page.StatusCode)." }
+            }
+            Write-Host "L'exécutable sert l'API et l'interface."
+          } finally {
+            if ($process -and -not $process.HasExited) { Stop-Process -Id $process.Id -Force }
+          }
+
+      - name: Publish the executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: MonteCarloSimulator-windows
+          path: dist/MonteCarloSimulator.exe
+          if-no-files-found: error

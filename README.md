@@ -87,6 +87,39 @@ The `/risques` route builds or imports a schema-1.0 register, validates it throu
 The simulator runs as **one instance on a designated machine of the company network**. Members reach
 it from a browser; nothing leaves the site. Identity is a real account, held in a local SQLite file.
 
+### Launching it
+
+Once the interface is built (`cd web && npm run build`), the API serves it from the same process, so
+there is a single thing to start:
+
+```bash
+monte-carlo-simulator            # picks a free port, opens the browser
+monte-carlo-simulator --host 0.0.0.0   # reachable from the rest of the network
+```
+
+The launcher takes the first free port at or after 8000, so a second launch does not fail with a
+stack trace on a machine nobody is watching.
+
+### A double-clickable executable
+
+`packaging/monte-carlo-simulator.spec` bundles the interpreter, the server, the built interface and
+the blank workbook into one file. The `Executable` workflow builds it on Windows — on demand or on a
+`v*` tag — smoke-tests that the binary actually serves `/api/health` and the interface, then
+publishes it as an artifact.
+
+```bash
+cd web && npm run build && cd ..
+pip install -e ".[web,packaging]"
+pyinstaller packaging/monte-carlo-simulator.spec
+```
+
+The console window is kept on purpose: it prints the address to share with colleagues, and a startup
+failure stays readable instead of the window vanishing.
+
+**Verified on Linux, not on Windows.** The spec was exercised end to end here — building the binary,
+launching it with no Python or Node available to it, and driving the whole path in a browser. The
+Windows build itself runs in CI and has not been executed by the author.
+
 ### First launch
 
 Start the API, open the interface, and the browser offers a **first-configuration screen** to create

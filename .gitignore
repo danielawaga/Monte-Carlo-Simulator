@@ -15,6 +15,7 @@ htmlcov/
 # Build artifacts
 dist/
 build/
+*.spec.bak
 node_modules/
 *.tsbuildinfo
 *.egg-info/
