@@ -74,3 +74,25 @@ export type AuthUser = {
 export type HealthStatus = { setupRequired: boolean; authenticated: boolean };
 export type NewUserInput = { email: string; fullName: string; password: string; role: UserRole };
 export type UserUpdate = { role?: UserRole; isActive?: boolean };
+
+export type Author = { id: number | null; fullName: string };
+
+export type SharedRegister = {
+  id: number;
+  name: string;
+  register: RiskRegisterDraft;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: Author;
+  updatedBy: Author;
+};
+
+export type SharedRun = {
+  id: number;
+  registerId: number | null;
+  label: string;
+  config: SimulationWorkspaceConfig;
+  result: SimulationResponse;
+  createdAt: string;
+  createdBy: Author;
+};

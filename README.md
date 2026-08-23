@@ -31,6 +31,7 @@ The Streamlit interface that carried the S4/S5 workflow has been removed: React 
 - React/TypeScript/Vite frontend with a risk-register builder, unified Simulation/Scenarios workspace and Results screen;
 - reproducible synthetic acceptance case and consultant-validation protocol;
 - local user accounts with two roles, `httpOnly` session cookies and a first-run administrator setup;
+- registers and completed runs shared across the team, each recording who wrote it;
 - user, methodology, handover and restitution documentation.
 
 ## Installation
@@ -119,6 +120,10 @@ single instance — no more mailing spreadsheets around.
 Authorship is recorded on every write and never used to hide anything. A register keeps both who
 created it and who last changed it, so a reserve figure that went to a client can be traced back to
 the person who produced it.
+
+In the interface, a fifth tab of `/risques` — **Partagés** — lists them, publishes the current
+draft and opens a colleague's. Keeping a completed simulation is one button on the Results screen;
+the run records its author, its assumptions and the shared register it came from.
 
 Two deliberate asymmetries:
 

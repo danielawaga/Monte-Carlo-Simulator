@@ -1,5 +1,6 @@
 import {
   Activity,
+  Archive,
   BarChart3,
   CheckCircle2,
   Copy,
@@ -18,6 +19,7 @@ import { StatCard } from '../components/cards/StatCard';
 import { ConvergenceChartCard, LiveHistogramCard, LiveSCurveCard, TornadoChartCard } from '../components/charts/LiveCharts';
 import { Button, Card, CardTitle, PageHeader, StatusPill } from '../components/common';
 import { simulationService } from '../services/simulationService';
+import { saveSharedRun } from '../services/sharedProjects';
 import { formatAmount, numeric, percentile } from '../services/simulationMetrics';
 import { useSimulation } from '../state/SimulationContext';
 import type { NumericRecord, SimulationResponse } from '../types';
@@ -111,10 +113,12 @@ function RobustnessSection({ result }: { result: SimulationResponse }) {
 }
 
 export function SimulationResultsPage() {
-  const { result, reference, register, projectSource, config, freezeReference } = useSimulation();
+  const { result, reference, register, projectSource, config, sharedRegisterId, freezeReference } = useSimulation();
   const [tab, setTab] = useState<ResultTab>('summary');
   const [shareState, setShareState] = useState<'idle' | 'copied' | 'error'>('idle');
   const [exportState, setExportState] = useState<'idle' | 'excel' | 'bundle' | 'error'>('idle');
+  const [keepState, setKeepState] = useState<'idle' | 'saving' | 'kept' | 'error'>('idle');
+  const [keepError, setKeepError] = useState('');
 
   const downloadResults = async (kind: 'excel' | 'bundle') => {
     if (!result || exportState === 'excel' || exportState === 'bundle') return;
@@ -145,12 +149,30 @@ export function SimulationResultsPage() {
 
   if (!result) return <>
     <PageHeader title="Résultats de la simulation" subtitle="Consultez les indicateurs et diagnostics d’une simulation calculée." />
+    {keepError ? <div className="pro-error-banner register-banner" role="alert"><Info />{keepError}</div> : null}
     <Card className="results-empty-state"><Dices /><h2>Aucun résultat disponible</h2><p>{projectSource?'Configurez puis lancez une simulation pour afficher des résultats réels.':'Créez ou importez d’abord un registre de risques, puis configurez la simulation.'} Les données de démonstration ne remplacent plus silencieusement un calcul absent.</p><Link className="button primary" to={projectSource?'/configuration':'/risques'}>{projectSource?'Configurer une simulation':'Préparer un projet'}</Link></Card>
   </>;
 
+  const keepRun = async () => {
+    setKeepState('saving');
+    setKeepError('');
+    try {
+      await saveSharedRun(
+        config.scenarioName.trim() || result.project.name,
+        config,
+        result,
+        sharedRegisterId ?? undefined,
+      );
+      setKeepState('kept');
+    } catch (cause) {
+      setKeepError(cause instanceof Error ? cause.message : 'L’enregistrement a échoué.');
+      setKeepState('error');
+    }
+  };
+
   const referenceFrozen = reference?.run.generatedAt === result.run.generatedAt;
   return <>
-    <PageHeader title="Résultats de la simulation" subtitle={`Analyse réelle du projet ${result.project.name}.`} actions={<><Button onClick={()=>void downloadResults('excel')} disabled={exportState === 'excel'||exportState === 'bundle'}><Download />{exportState === 'excel' ? 'Préparation…' : 'Exporter Excel'}</Button><Button onClick={()=>void downloadResults('bundle')} disabled={exportState === 'excel'||exportState === 'bundle'}><PackageOpen />{exportState === 'bundle' ? 'Création du ZIP…' : 'Télécharger le dossier ZIP'}</Button><Button onClick={freezeReference}><Save />{referenceFrozen ? 'Référence enregistrée' : 'Geler comme référence'}</Button>{reference ? <Link className="button secondary" to="/comparaison"><Copy />Comparer</Link> : null}<Button onClick={()=>void copyPageAddress()}>{shareState === 'copied' ? <CheckCircle2 /> : <Link2 />}{shareState === 'copied' ? 'Adresse copiée' : shareState === 'error' ? 'Copie impossible' : 'Copier l’adresse'}</Button></>} />
+    <PageHeader title="Résultats de la simulation" subtitle={`Analyse réelle du projet ${result.project.name}.`} actions={<><Button onClick={()=>void downloadResults('excel')} disabled={exportState === 'excel'||exportState === 'bundle'}><Download />{exportState === 'excel' ? 'Préparation…' : 'Exporter Excel'}</Button><Button onClick={()=>void downloadResults('bundle')} disabled={exportState === 'excel'||exportState === 'bundle'}><PackageOpen />{exportState === 'bundle' ? 'Création du ZIP…' : 'Télécharger le dossier ZIP'}</Button><Button onClick={()=>void keepRun()} disabled={keepState === 'saving'} title="Conserver cette exécution pour l’équipe, avec son auteur et ses hypothèses."><Archive />{keepState === 'saving' ? 'Enregistrement…' : keepState === 'kept' ? 'Exécution conservée' : 'Conserver pour l’équipe'}</Button><Button onClick={freezeReference}><Save />{referenceFrozen ? 'Référence enregistrée' : 'Geler comme référence'}</Button>{reference ? <Link className="button secondary" to="/comparaison"><Copy />Comparer</Link> : null}<Button onClick={()=>void copyPageAddress()}>{shareState === 'copied' ? <CheckCircle2 /> : <Link2 />}{shareState === 'copied' ? 'Adresse copiée' : shareState === 'error' ? 'Copie impossible' : 'Copier l’adresse'}</Button></>} />
     {exportState === 'error' ? <div className="pro-error-banner results-action-message" role="alert">Le fichier demandé n’a pas pu être généré. Vérifiez que l’API est démarrée puis réessayez.</div> : null}
     {shareState === 'copied' ? <div className="results-action-message results-action-message--info" role="status">L’adresse de cette page est copiée. Pour transmettre les données de la simulation, partagez plutôt le fichier Excel exporté.</div> : null}
     <div className="result-governance-bar"><div><span>Projet</span><b>{result.project.name}</b></div><div><span>Exécution</span><b>{new Date(result.run.generatedAt).toLocaleString('fr-FR')}</b></div><div><span>Tirages</span><b>{result.run.simulations.toLocaleString('fr-FR')}</b></div><div><span>Graine</span><b>{result.run.seed}</b></div><div><span>Corrélations</span><b>{result.run.correlationsEnabled ? 'Actives' : 'Indépendance'}</b></div><div><span>Source</span><StatusPill>Moteur Python</StatusPill></div></div>
