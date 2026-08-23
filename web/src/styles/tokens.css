@@ -1,0 +1,144 @@
+/* Design tokens — the single source of colour, depth and type for the app.
+ *
+ * Every rule elsewhere reads from here. That is what makes the dark theme
+ * correct by construction: a hardcoded colour in a component is a colour that
+ * stays light when the rest of the interface goes dark, which is exactly how
+ * the callouts, progress tracks and badges used to break.
+ *
+ * Inter is served from the application itself. It used to be pulled from
+ * Google Fonts, which an offline desk cannot reach — the interface then fell
+ * back to Arial, and every launch leaked a request to a third party.
+ */
+
+@font-face {
+  font-family: 'Inter var';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/inter-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Inter var';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/inter-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root {
+  /* Type ------------------------------------------------------------------ */
+  --font: 'Inter var', Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+
+  --fs-2xs: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-base: 14px;
+  --fs-md: 15px;
+  --fs-lg: 17px;
+  --fs-xl: 20px;
+  --fs-2xl: 26px;
+  --fs-3xl: 32px;
+
+  /* Shape ----------------------------------------------------------------- */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-full: 999px;
+
+  /* Surfaces -------------------------------------------------------------- */
+  --app-bg: #f5f7fa;
+  --surface: #ffffff;
+  --surface-muted: #f9fafc;
+  --surface-strong: #eef2f7;
+  --surface-hover: #f5f8fc;
+
+  /* Ink ------------------------------------------------------------------- */
+  --text: #101a2e;
+  --text-muted: #5b6880;
+  --text-subtle: #7d8798;
+  --text-inverse: #ffffff;
+
+  /* Lines ----------------------------------------------------------------- */
+  --border: #e4e9f0;
+  --border-strong: #cfd7e2;
+  --track: #e8edf4;
+
+  /* Accent ---------------------------------------------------------------- */
+  --accent: #f0500f;
+  --accent-hover: #d64509;
+  --accent-text: #c4400a;
+  --accent-soft: #fff1e9;
+  --accent-line: #f9b795;
+
+  /* Semantics ------------------------------------------------------------- */
+  --blue: #1668d6;
+  --blue-soft: #eaf2ff;
+  --green: #10783c;
+  --green-soft: #e8f7ee;
+  --red: #c02a37;
+  --red-soft: #fdedee;
+  --amber: #9a5b06;
+  --amber-soft: #fdf3e3;
+
+  /* Depth ----------------------------------------------------------------- */
+  --shadow-xs: 0 1px 2px rgba(16, 26, 46, .06);
+  --shadow-sm: 0 1px 3px rgba(16, 26, 46, .08), 0 1px 2px rgba(16, 26, 46, .04);
+  --shadow-md: 0 4px 14px rgba(16, 26, 46, .08), 0 1px 3px rgba(16, 26, 46, .05);
+  --shadow-lg: 0 14px 36px rgba(16, 26, 46, .13), 0 3px 9px rgba(16, 26, 46, .06);
+  --shadow-accent: 0 4px 12px rgba(240, 80, 15, .26);
+
+  /* Page backdrop — two very faint washes, so the interface has some depth
+   * without a photograph competing with the figures on top of it. */
+  --backdrop:
+    radial-gradient(1100px 620px at 12% -8%, rgba(240, 80, 15, .05), transparent 62%),
+    radial-gradient(950px 560px at 96% 4%, rgba(22, 104, 214, .05), transparent 60%);
+}
+
+html[data-theme="dark"] {
+  --app-bg: #0d1017;
+  --surface: #161b24;
+  --surface-muted: #12171f;
+  --surface-strong: #1e2532;
+  --surface-hover: #1c232f;
+
+  --text: #f3f6fa;
+  --text-muted: #a6b1c2;
+  --text-subtle: #8590a3;
+  --text-inverse: #101a2e;
+
+  --border: #29313f;
+  --border-strong: #3a4454;
+  --track: #262e3b;
+
+  --accent: #ff6b2c;
+  --accent-hover: #ff8149;
+  --accent-text: #ff8b57;
+  --accent-soft: #2f1b11;
+  --accent-line: #7a3d1d;
+
+  --blue: #6ba6ff;
+  --blue-soft: #16243c;
+  --green: #59cd8b;
+  --green-soft: #123024;
+  --red: #ff8e99;
+  --red-soft: #2f171b;
+  --amber: #e0a955;
+  --amber-soft: #2c2110;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, .34);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, .4), 0 1px 2px rgba(0, 0, 0, .28);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, .46), 0 1px 3px rgba(0, 0, 0, .3);
+  --shadow-lg: 0 14px 36px rgba(0, 0, 0, .56), 0 3px 9px rgba(0, 0, 0, .34);
+  --shadow-accent: 0 4px 12px rgba(255, 107, 44, .24);
+
+  --backdrop:
+    radial-gradient(1100px 620px at 12% -8%, rgba(255, 107, 44, .07), transparent 62%),
+    radial-gradient(950px 560px at 96% 4%, rgba(107, 166, 255, .06), transparent 60%);
+}
