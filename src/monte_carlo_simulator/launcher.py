@@ -3,6 +3,12 @@
 Double-clicking the packaged executable lands here: it picks a port, starts the
 HTTP server, and opens the browser on it. The interface is served by the same
 process, so there is nothing else to launch and no terminal to keep open.
+
+The listening address is fixed to the loopback interface and deliberately not
+configurable. The application has no authentication — that went with the shared
+deployment — so binding anywhere else would let any device on the subnet list,
+overwrite and delete the saved registers. TLS would not help: it encrypts the
+connection, it does not decide who may use it.
 """
 
 from __future__ import annotations
@@ -19,7 +25,7 @@ import uvicorn
 from monte_carlo_simulator.resources import frontend_directory, is_frozen
 
 DEFAULT_PORT = 8000
-DEFAULT_HOST = "127.0.0.1"
+HOST = "127.0.0.1"
 PORT_SEARCH_ATTEMPTS = 20
 
 logger = logging.getLogger(__name__)
@@ -60,14 +66,6 @@ def build_parser() -> argparse.ArgumentParser:
         description="Lance le simulateur Monte-Carlo et ouvre l'interface.",
     )
     parser.add_argument(
-        "--host",
-        default=os.environ.get("MCS_HOST", DEFAULT_HOST),
-        help=(
-            "Adresse d'écoute. 127.0.0.1 (défaut) restreint l'accès à cette machine ; "
-            "0.0.0.0 expose le service à tout le réseau local."
-        ),
-    )
-    parser.add_argument(
         "--port",
         type=int,
         default=int(os.environ.get("MCS_PORT", DEFAULT_PORT)),
@@ -82,7 +80,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     options = build_parser().parse_args(argv)
-    port = choose_port(options.host, options.port)
+    port = choose_port(HOST, options.port)
 
     if frontend_directory() is None:
         logger.warning(
@@ -90,22 +88,15 @@ def main(argv: list[str] | None = None) -> None:
             "Depuis les sources, lancez « npm run build » dans web/ au préalable."
         )
 
-    # Reaching a server bound to 127.0.0.1 needs that same address in the URL,
-    # while 0.0.0.0 is a bind address and not something a browser can open.
-    reachable = "127.0.0.1" if options.host in ("0.0.0.0", "") else options.host
-    url = f"http://{reachable}:{port}"
+    url = f"http://{HOST}:{port}"
     logger.info("Simulateur Monte-Carlo démarré sur %s", url)
-    if options.host == "0.0.0.0":
-        logger.warning(
-            "Écoute sur toutes les interfaces : le service est joignable par tout le "
-            "réseau, wifi invité compris si le réseau est plat."
-        )
+    logger.info("L'accès est limité à cette machine ; rien ne circule sur le réseau.")
     if not options.no_browser:
         _open_browser_later(url)
 
     uvicorn.run(
         "monte_carlo_simulator.web_api:app",
-        host=options.host,
+        host=HOST,
         port=port,
         # Reload rewrites the import machinery, which a frozen build cannot do.
         reload=False,

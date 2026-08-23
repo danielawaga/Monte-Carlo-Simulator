@@ -1,29 +1,19 @@
 import {
   BarChart3,
-  ChevronDown,
   CircleHelp,
   ClipboardList,
   Dices,
   Home,
-  LockKeyhole,
   Monitor,
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
   Sun,
-  Users,
   X,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
-import { useAuth } from '../../state/AuthContext';
 import { useTheme, type ThemePreference } from '../../state/ThemeContext';
-
-function initials(fullName: string | undefined): string {
-  if (!fullName) return '··';
-  const parts = fullName.trim().split(/\s+/).slice(0, 2);
-  return parts.map((part) => part[0]?.toUpperCase() ?? '').join('') || '··';
-}
 
 const Logo = ({ collapsed, onNavigate }: { collapsed: boolean; onNavigate: () => void }) => (
   <NavLink className="brand" to="/" aria-label="RiskSim — Accueil" onClick={onNavigate}>
@@ -44,7 +34,6 @@ const navigation = [
   { to: '/configuration', label: 'Simulation', icon: Dices },
   { to: '/resultats', label: 'Résultats', icon: BarChart3 },
   { to: '/parametres', label: 'Paramètres', icon: Settings },
-  { to: '/administration', label: 'Administration', icon: Users },
 ] as const;
 
 const themes: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
@@ -63,7 +52,6 @@ type SidebarProps = {
 
 export function Sidebar({ collapsed, mobileOpen, onToggle, onNavigate, onMobileClose }: SidebarProps) {
   const { theme, setTheme } = useTheme();
-  const { user, signOut } = useAuth();
 
   return (
     <aside className={`sidebar ${collapsed ? 'is-collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
@@ -95,16 +83,8 @@ export function Sidebar({ collapsed, mobileOpen, onToggle, onNavigate, onMobileC
             </button>
           ))}
         </div>
-        <button type="button" className="nav-main lock-button" onClick={() => void signOut()} title={collapsed ? 'Se déconnecter' : undefined}>
-          <LockKeyhole /><span>Se déconnecter</span>
-        </button>
         <NavLink className="nav-main help-link" to="/aide" title={collapsed ? 'Aide & documentation' : undefined} onClick={onNavigate}>
           <CircleHelp /><span>Aide &amp; documentation</span>
-        </NavLink>
-        <NavLink className="user user-link" to="/profil" title={collapsed ? user?.fullName : undefined} onClick={onNavigate}>
-          <span>{initials(user?.fullName)}</span>
-          <div><strong>{user?.fullName ?? 'Compte'}</strong><small>{user?.role === 'admin' ? 'Administrateur' : 'Membre'}</small></div>
-          <ChevronDown />
         </NavLink>
       </div>
     </aside>

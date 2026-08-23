@@ -2,13 +2,12 @@
 
 Python application for probabilistic project cost and schedule risk analysis. The project turns an Excel risk register into a simulated total distribution, decision percentiles, baseline reserves, correlation diagnostics, convergence evidence and sensitivity outputs.
 
-## Current status — S6 on-premises deployment
+## Current status — S6 per-desk application
 
-The simulator is deployed as an internal application: one instance on a machine of the company
-network, reached from a browser, with real user accounts stored locally. The repository combines two
-layers:
+The simulator is installed on each desk and listens on the loopback interface only: nothing travels
+over the network. The repository combines two layers:
 
-- a tested Python Monte Carlo engine, application service, HTTP API and local account store;
+- a tested Python Monte Carlo engine, application service, HTTP API and local store;
 - a React + TypeScript + Vite interface under `web/`, the single operational interface, structured around Risk register, Configuration, Results and Scenario Comparison views.
 
 The Streamlit interface that carried the S4/S5 workflow has been removed: React now covers the whole end-to-end path — import, edit, reset to the imported assumptions, validate, simulate, analyse and export — and adds scenario comparison, which Streamlit never had. The probabilistic logic stays in Python.
@@ -30,8 +29,7 @@ The Streamlit interface that carried the S4/S5 workflow has been removed: React 
 - reset/re-run workflow for lightweight what-if analysis;
 - React/TypeScript/Vite frontend with a risk-register builder, unified Simulation/Scenarios workspace and Results screen;
 - reproducible synthetic acceptance case and consultant-validation protocol;
-- local user accounts with two roles, `httpOnly` session cookies and a first-run administrator setup;
-- registers and completed runs shared across the team, each recording who wrote it;
+- registers and completed runs saved in a local database, with the assumptions behind each figure;
 - user, methodology, handover and restitution documentation.
 
 ## Installation
@@ -82,10 +80,15 @@ npm run build
 
 The `/risques` route builds or imports a schema-1.0 register, validates it through the Python engine and exports a compatible `.xlsx`, including an optional correlation matrix. `/configuration` reuses that shared register, groups execution standards and scenario documentation on one screen, and sends the draft directly to the API. `/resultats` displays the resulting indicators, histogram, S-curve and sensitivity ranking. The API delegates all probabilistic rules to `run_simulation_from_excel`; React remains responsible for editing, presentation and local scenario snapshots. Secondary workspace views still use demonstration data.
 
-## Accounts and local deployment
+## Per-desk installation
 
-The simulator runs as **one instance on a designated machine of the company network**. Members reach
-it from a browser; nothing leaves the site. Identity is a real account, held in a local SQLite file.
+Each desk runs its own copy. The launcher binds to `127.0.0.1` by default, so **nothing travels over
+the network**: no password, no data, nothing to intercept. That is a deliberate reversal of an
+earlier design — a single shared instance on the company network — which was dropped because
+protecting it properly needed a TLS certificate that could not be installed on locked-down
+workstations. Removing the network removes the problem rather than papering over it.
+
+Colleagues exchange work the way they always did: through the `.xlsx` import and export.
 
 ### Launching it
 
@@ -93,12 +96,17 @@ Once the interface is built (`cd web && npm run build`), the API serves it from 
 there is a single thing to start:
 
 ```bash
-monte-carlo-simulator            # picks a free port, opens the browser
-monte-carlo-simulator --host 0.0.0.0   # reachable from the rest of the network
+monte-carlo-simulator          # picks a free port, opens the browser
 ```
 
 The launcher takes the first free port at or after 8000, so a second launch does not fail with a
 stack trace on a machine nobody is watching.
+
+**The listening address is fixed to `127.0.0.1` and cannot be changed from the command line.** The
+application has no authentication — that went with the shared deployment — so any other bind address
+would let every device on the subnet list, overwrite and delete the saved registers. TLS would not
+make that safe: it encrypts the connection, it does not decide who may use it. Reaching the tool from
+another machine would need an authentication layer back, which is a deliberate change and not a flag.
 
 ### A double-clickable executable
 
@@ -113,76 +121,38 @@ pip install -e ".[web,packaging]"
 pyinstaller packaging/monte-carlo-simulator.spec
 ```
 
-The console window is kept on purpose: it prints the address to share with colleagues, and a startup
-failure stays readable instead of the window vanishing.
+The console window is kept on purpose: it prints the address, and a startup failure stays readable
+instead of the window vanishing.
 
 **Verified on Linux, not on Windows.** The spec was exercised end to end here — building the binary,
 launching it with no Python or Node available to it, and driving the whole path in a browser. The
 Windows build itself runs in CI and has not been executed by the author.
 
-### First launch
+### Saved registers and run history
 
-Start the API, open the interface, and the browser offers a **first-configuration screen** to create
-the founding administrator. That screen closes permanently as soon as one account exists, so create
-the administrator right after the first launch.
+Registers and completed runs live in a local SQLite file rather than in `localStorage`, which
+vanishes with the browsing data and cannot be backed up. A fifth tab of `/risques` — **Enregistrés**
+— lists them, saves the current draft and reopens one. Keeping a completed simulation is one button
+on the Results screen; the run records its assumptions and the register it came from, which is what
+lets a reserve figure sent to a client be traced back.
+
+Deleting a register detaches its runs rather than erasing them: a decision record that can quietly
+disappear is not a decision record.
 
 The database lives in a per-machine data directory — `%LOCALAPPDATA%\MonteCarloSimulator` on Windows,
 `~/.local/share/MonteCarloSimulator` elsewhere — and never inside the application tree, so a packaged
-executable can unpack itself read-only. Override it with `MCS_DATA_DIR`:
+executable can unpack itself read-only. Override it with `MCS_DATA_DIR`. **That one file is the whole
+state of the installation: back it up and you have backed up everything.**
 
-```bash
-export MCS_DATA_DIR=/srv/monte-carlo
-uvicorn monte_carlo_simulator.web_api:app --host 0.0.0.0 --port 8000
-```
+An installation created by either earlier version upgrades in place: the accounts, the password
+hashes and the session tokens are dropped — including from a version-1 database, which held accounts
+and no registers at all — while the saved registers and their run history are kept.
 
-That one file is the whole state of the installation: **back it up and you have backed up everything.**
+### What this does not protect
 
-### Roles
-
-Two roles. `member` uses the simulator; `admin` also manages accounts from `/administration`.
-Everyone sees the same registers and results — the shared-work and traceability requirement, not
-per-person isolation — while authorship is recorded. The last active administrator can be neither
-disabled nor demoted, so an installation can never become unadministrable.
-
-### Shared registers and runs
-
-Registers and completed runs live in the same database and are **shared by everyone**: any signed-in
-member sees every register, can pick up a colleague's work and continue it. That is the point of the
-single instance — no more mailing spreadsheets around.
-
-Authorship is recorded on every write and never used to hide anything. A register keeps both who
-created it and who last changed it, so a reserve figure that went to a client can be traced back to
-the person who produced it.
-
-In the interface, a fifth tab of `/risques` — **Partagés** — lists them, publishes the current
-draft and opens a colleague's. Keeping a completed simulation is one button on the Results screen;
-the run records its author, its assumptions and the shared register it came from.
-
-Two deliberate asymmetries:
-
-- **deleting a register is reserved to administrators.** Editing is everyone's business; destroying
-  shared assumptions is not;
-- **runs outlive their register.** Deleting a register detaches its runs rather than erasing them —
-  a decision record that can quietly disappear is not a decision record. Authorship likewise
-  outlives the account: a removed user leaves their work behind, attributed to « Compte supprimé ».
-
-### Sessions
-
-Sign-in returns an `httpOnly` session cookie, so page scripts cannot read the token. Sessions expire
-after 12 hours. Changing a password or disabling an account closes every open session immediately.
-Passwords are hashed with `hashlib.scrypt`; only the hash of a session token is stored, so a stolen
-copy of the database cannot be replayed as a live session.
-
-### Two deployment cautions
-
-**The listening interface.** `--host 0.0.0.0` exposes the service to everything on the subnet,
-including the guest wifi if the network is flat. Bind to a specific address when that matters, and
-expect Windows Firewall to ask for permission the first time.
-
-**Plain HTTP.** Over a wired LAN in a closed office the risk is low. **On wifi it is not**: passwords
-and risk registers travel in clear and anyone on the same network can read them. Put the service
-behind TLS — an internal certificate authority, or a self-signed certificate accepted once per
-machine — before relying on it over wireless.
+The database sits on the disk, readable by anyone with the machine's session. There is no login
+screen, and adding one would not change that — it would guard the interface, not the file. What
+actually protects it is full-disk encryption such as BitLocker.
 
 ## CLI
 
@@ -348,8 +318,8 @@ The current editable-hypotheses adapter exposes imported metadata and risk rows,
 - Do not commit real risk registers without anonymization and authorization.
 - Do not add client identifiers or personal data to examples or tests.
 - `.xlsx` and `.xls` files remain ignored globally except for the public fictitious template explicitly allowed by the repository rules.
-- The account database holds password hashes and session tokens: back up `MCS_DATA_DIR` like any other confidential asset, and never commit it.
-- Serve the interface over TLS before exposing it on wireless, where credentials would otherwise travel in clear.
+- The local database holds client risk registers: back up `MCS_DATA_DIR` like any other confidential asset, never commit it, and rely on full-disk encryption to protect it at rest.
+- The service binds to `127.0.0.1` and cannot be reconfigured: without authentication, any network bind would expose the registers to the whole subnet.
 
 ## Next steps
 

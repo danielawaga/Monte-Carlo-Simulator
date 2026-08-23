@@ -66,23 +66,24 @@ class TestPortSelection:
 
 
 class TestCommandLine:
-    def test_the_defaults_keep_the_service_on_this_machine(self) -> None:
-        """Binding to localhost by default is what keeps a launch from exposing the LAN."""
+    def test_the_listening_address_cannot_be_changed(self) -> None:
+        """The application has no authentication, so a non-loopback bind would
+        let any device on the subnet read and delete the saved registers."""
+        assert launcher.HOST == "127.0.0.1"
+
+        with pytest.raises(SystemExit):
+            launcher.build_parser().parse_args(["--host", "0.0.0.0"])
+
+    def test_the_defaults_are_usable_as_is(self) -> None:
         options = launcher.build_parser().parse_args([])
 
-        assert options.host == "127.0.0.1"
         assert options.port == launcher.DEFAULT_PORT
         assert options.no_browser is False
 
-    def test_the_environment_can_preset_host_and_port(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setenv("MCS_HOST", "0.0.0.0")
+    def test_the_environment_can_preset_the_port(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("MCS_PORT", "9100")
 
-        options = launcher.build_parser().parse_args([])
-
-        assert (options.host, options.port) == ("0.0.0.0", 9100)
+        assert launcher.build_parser().parse_args([]).port == 9100
 
     def test_explicit_arguments_win_over_the_environment(
         self, monkeypatch: pytest.MonkeyPatch
