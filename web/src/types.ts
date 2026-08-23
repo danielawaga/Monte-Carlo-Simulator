@@ -58,3 +58,19 @@ export type SimulationResponse={
   histogram:{start:number;end:number;count:number}[];
   sCurve:{amount:number;probability:number}[];
 };
+
+export type UserRole = 'admin' | 'member';
+
+export type AuthUser = {
+  id: number;
+  email: string;
+  fullName: string;
+  role: UserRole;
+  isActive: boolean;
+  createdAt: string;
+  lastLoginAt: string | null;
+};
+
+export type HealthStatus = { setupRequired: boolean; authenticated: boolean };
+export type NewUserInput = { email: string; fullName: string; password: string; role: UserRole };
+export type UserUpdate = { role?: UserRole; isActive?: boolean };

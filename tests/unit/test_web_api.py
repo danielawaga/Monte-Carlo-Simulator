@@ -1,5 +1,6 @@
 """Contract tests for the React-to-Python HTTP adapter."""
 
+from collections.abc import Iterator
 from io import BytesIO
 from pathlib import Path
 from zipfile import ZipFile
@@ -8,19 +9,55 @@ import pytest
 from fastapi.testclient import TestClient
 from openpyxl import load_workbook
 
-from monte_carlo_simulator.access import ACCESS_KEY_ENV, ACCESS_KEY_HEADER
 from monte_carlo_simulator.io import create_risk_register_workbook
+from monte_carlo_simulator.storage import database
 from monte_carlo_simulator.web_api import app
 
-client = TestClient(app)
-SHARED_KEY = "cle-partagee-de-test"
+ADMIN = {"email": "awa@exemple.fr", "fullName": "Awa Diallo", "password": "motdepasse-solide"}
+MEMBER = {
+    "email": "claire@exemple.fr",
+    "fullName": "Claire Martin",
+    "password": "motdepasse-solide",
+}
+
+
+@pytest.fixture(autouse=True)
+def isolated_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Point every test at its own database.
+
+    Without this the suite would write into the real per-machine data directory
+    of whoever runs it.
+    """
+    monkeypatch.setenv(database.DATA_DIR_ENV, str(tmp_path / "data"))
 
 
 @pytest.fixture
-def gated(monkeypatch: pytest.MonkeyPatch) -> str:
-    """Configure the shared secret for the duration of one test."""
-    monkeypatch.setenv(ACCESS_KEY_ENV, SHARED_KEY)
-    return SHARED_KEY
+def anonymous() -> Iterator[TestClient]:
+    with TestClient(app) as http:
+        yield http
+
+
+@pytest.fixture
+def admin(anonymous: TestClient) -> TestClient:
+    """A client signed in as the founding administrator."""
+    response = anonymous.post("/api/setup", json=ADMIN)
+    assert response.status_code == 200, response.text
+    return anonymous
+
+
+@pytest.fixture
+def member(admin: TestClient) -> Iterator[TestClient]:
+    """A separate client signed in as an ordinary member."""
+    assert admin.post("/api/users", json=MEMBER).status_code == 200
+    with TestClient(app) as http:
+        assert (
+            http.post(
+                "/api/auth/login",
+                json={"email": MEMBER["email"], "password": MEMBER["password"]},
+            ).status_code
+            == 200
+        )
+        yield http
 
 
 def _draft_payload() -> dict[str, object]:
@@ -66,20 +103,20 @@ def _draft_payload() -> dict[str, object]:
     }
 
 
-def test_health_endpoint_exposes_engine_status(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv(ACCESS_KEY_ENV, raising=False)
-    response = client.get("/api/health")
+def test_health_reports_a_fresh_installation(anonymous: TestClient) -> None:
+    response = anonymous.get("/api/health")
 
     assert response.status_code == 200
     assert response.json() == {
         "status": "ok",
         "engine": "monte-carlo-simulator",
-        "accessControl": "disabled",
+        "setupRequired": True,
+        "authenticated": False,
     }
 
 
-def test_simulation_rejects_non_xlsx_upload() -> None:
-    response = client.post(
+def test_simulation_rejects_non_xlsx_upload(admin: TestClient) -> None:
+    response = admin.post(
         "/api/simulate",
         files={"file": ("register.csv", b"name,value", "text/csv")},
     )
@@ -88,8 +125,8 @@ def test_simulation_rejects_non_xlsx_upload() -> None:
     assert response.json()["detail"] == "Seuls les registres .xlsx sont acceptés."
 
 
-def test_template_endpoint_returns_excel_workbook() -> None:
-    response = client.get("/api/template")
+def test_template_endpoint_returns_excel_workbook(admin: TestClient) -> None:
+    response = admin.get("/api/template")
 
     assert response.status_code == 200
     assert response.headers["content-disposition"].endswith(
@@ -98,7 +135,9 @@ def test_template_endpoint_returns_excel_workbook() -> None:
     assert response.content.startswith(b"PK")
 
 
-def test_simulation_endpoint_runs_engine_and_preserves_correlations(tmp_path: Path) -> None:
+def test_simulation_endpoint_runs_engine_and_preserves_correlations(
+    admin: TestClient, tmp_path: Path
+) -> None:
     workbook_path = tmp_path / "correlated.xlsx"
     create_risk_register_workbook(
         workbook_path,
@@ -122,7 +161,7 @@ def test_simulation_endpoint_runs_engine_and_preserves_correlations(tmp_path: Pa
     workbook.close()
 
     with workbook_path.open("rb") as stream:
-        response = client.post(
+        response = admin.post(
             "/api/simulate",
             files={
                 "file": (
@@ -153,10 +192,10 @@ def test_simulation_endpoint_runs_engine_and_preserves_correlations(tmp_path: Pa
     assert payload["sCurve"]
 
 
-def test_register_draft_can_be_validated_exported_and_imported() -> None:
+def test_register_draft_can_be_validated_exported_and_imported(admin: TestClient) -> None:
     draft = _draft_payload()
 
-    validation = client.post("/api/register/validate", json=draft)
+    validation = admin.post("/api/register/validate", json=draft)
     assert validation.status_code == 200
     assert validation.json() == {
         "valid": True,
@@ -166,11 +205,11 @@ def test_register_draft_can_be_validated_exported_and_imported() -> None:
         "correlationsEnabled": True,
     }
 
-    exported = client.post("/api/register/export", json=draft)
+    exported = admin.post("/api/register/export", json=draft)
     assert exported.status_code == 200
     assert exported.content.startswith(b"PK")
 
-    imported = client.post(
+    imported = admin.post(
         "/api/register/import",
         files={
             "file": (
@@ -187,8 +226,8 @@ def test_register_draft_can_be_validated_exported_and_imported() -> None:
     assert imported_register["correlations"]["values"] == [[1.0, 0.2], [0.2, 1.0]]
 
 
-def test_register_draft_can_launch_simulation() -> None:
-    response = client.post(
+def test_register_draft_can_launch_simulation(admin: TestClient) -> None:
+    response = admin.post(
         "/api/register/simulate",
         json={
             "register": _draft_payload(),
@@ -210,7 +249,7 @@ def test_register_draft_can_launch_simulation() -> None:
     assert payload["run"]["correlationsEnabled"] is True
 
 
-def test_complete_results_can_be_exported_to_excel() -> None:
+def test_complete_results_can_be_exported_to_excel(admin: TestClient) -> None:
     config = {
         "simulations": 120,
         "seed": 20260820,
@@ -219,13 +258,13 @@ def test_complete_results_can_be_exported_to_excel() -> None:
         "exceedanceThreshold": 1800,
         "convergenceTolerance": 1,
     }
-    simulated = client.post(
+    simulated = admin.post(
         "/api/register/simulate",
         json={"register": _draft_payload(), "config": config},
     )
     assert simulated.status_code == 200
 
-    exported = client.post(
+    exported = admin.post(
         "/api/results/export",
         json={
             "result": simulated.json(),
@@ -252,7 +291,7 @@ def test_complete_results_can_be_exported_to_excel() -> None:
     assert workbook["Robustesse"]["B14"].value == 1
     workbook.close()
 
-    bundle = client.post(
+    bundle = admin.post(
         "/api/results/export-bundle",
         json={
             "result": simulated.json(),
@@ -279,69 +318,3 @@ def test_complete_results_can_be_exported_to_excel() -> None:
         for name in expected:
             if name.endswith(".png"):
                 assert archive.read(name).startswith(b"\x89PNG\r\n\x1a\n")
-
-
-def test_open_deployment_serves_requests_without_a_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv(ACCESS_KEY_ENV, raising=False)
-
-    assert client.get("/api/session").status_code == 200
-
-
-def test_health_stays_public_and_announces_the_gate(gated: str) -> None:
-    response = client.get("/api/health")
-
-    assert response.status_code == 200
-    assert response.json()["accessControl"] == "enabled"
-
-
-def test_gated_deployment_rejects_requests_without_a_key(gated: str) -> None:
-    response = client.post("/api/register/validate", json=_draft_payload())
-
-    assert response.status_code == 401
-    assert response.json()["detail"] == "Clé d’accès absente ou invalide."
-
-
-def test_gated_deployment_rejects_a_wrong_key(gated: str) -> None:
-    response = client.get("/api/session", headers={ACCESS_KEY_HEADER: "mauvaise-cle"})
-
-    assert response.status_code == 401
-
-
-def test_gated_deployment_accepts_the_shared_key(gated: str) -> None:
-    session = client.get("/api/session", headers={ACCESS_KEY_HEADER: gated})
-    assert session.status_code == 200
-    assert session.json() == {"authenticated": True}
-
-    validated = client.post(
-        "/api/register/validate",
-        json=_draft_payload(),
-        headers={ACCESS_KEY_HEADER: gated},
-    )
-    assert validated.status_code == 200
-    assert validated.json()["valid"] is True
-
-
-def test_gate_never_blocks_the_cors_preflight(gated: str) -> None:
-    response = client.options(
-        "/api/register/validate",
-        headers={
-            "Origin": "http://localhost:5173",
-            "Access-Control-Request-Method": "POST",
-            "Access-Control-Request-Headers": ACCESS_KEY_HEADER,
-        },
-    )
-
-    assert response.status_code == 200
-    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
-
-
-def test_rejection_stays_readable_by_the_browser(gated: str) -> None:
-    """The 401 must carry CORS headers, otherwise the interface sees a network error."""
-    response = client.post(
-        "/api/register/validate",
-        json=_draft_payload(),
-        headers={"Origin": "http://localhost:5173"},
-    )
-
-    assert response.status_code == 401
-    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"

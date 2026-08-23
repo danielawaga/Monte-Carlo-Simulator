@@ -1,78 +1,179 @@
-import { useState, type FormEvent } from 'react';
-import { History, KeyRound, ShieldCheck, UserPlus, Users, X } from 'lucide-react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { CheckCircle2, ShieldCheck, UserPlus, Users, XCircle } from 'lucide-react';
 import { Button, Card, CardTitle, PageHeader, StatusPill } from '../../components/common';
-import { auditEvents, teamMembers } from '../../data/workspaceData';
+import { createUser, listUsers, updateUser } from '../../services/authSession';
+import { useAuth } from '../../state/AuthContext';
+import type { AuthUser, UserRole } from '../../types';
+
+const roleLabel: Record<UserRole, string> = { admin: 'Administrateur', member: 'Membre' };
+
+function formatDate(value: string | null): string {
+  if (!value) return 'Jamais';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('fr-FR');
+}
 
 export function AdministrationPage() {
-  const [members, setMembers] = useState(teamMembers);
-  const [showInvite, setShowInvite] = useState(false);
+  const { user: currentUser } = useAuth();
+  const [users, setUsers] = useState<AuthUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [inviting, setInviting] = useState(false);
+  const [form, setForm] = useState({ email: '', fullName: '', password: '', role: 'member' as UserRole });
 
-  const inviteMember = (event: FormEvent<HTMLFormElement>) => {
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      setUsers(await listUsers());
+      setError('');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Les comptes sont indisponibles.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void refresh(); }, [refresh]);
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const name = String(form.get('name'));
-    setMembers((current) => [...current, {
-      initials: name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase(),
-      name,
-      email: String(form.get('email')),
-      role: String(form.get('role')),
-      scope: String(form.get('scope')),
-      mfa: false,
-      lastSeen: 'Invitation envoyée',
-      status: 'En attente',
-    }]);
-    setShowInvite(false);
+    setError('');
+    setMessage('');
+    try {
+      const created = await createUser(form);
+      setUsers((current) => [...current, created]);
+      setMessage(`Le compte de ${created.fullName} a été créé.`);
+      setForm({ email: '', fullName: '', password: '', role: 'member' });
+      setInviting(false);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'La création du compte a échoué.');
+    }
   };
 
-  const updateRole = (email: string, role: string) => setMembers((current) => current.map((member) => member.email === email ? { ...member, role } : member));
+  const patch = async (target: AuthUser, update: { role?: UserRole; isActive?: boolean }) => {
+    setError('');
+    setMessage('');
+    try {
+      const updated = await updateUser(target.id, update);
+      setUsers((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      setMessage(`Le compte de ${updated.fullName} a été mis à jour.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'La mise à jour a échoué.');
+    }
+  };
+
+  const admins = users.filter((item) => item.role === 'admin' && item.isActive).length;
+
+  if (currentUser && currentUser.role !== 'admin') {
+    return (
+      <>
+        <PageHeader title="Administration" subtitle="Gestion des comptes de l’installation." />
+        <Card className="register-builder-card">
+          <div className="pro-empty-state">
+            <ShieldCheck />
+            <b>Réservé aux administrateurs</b>
+            <span>Demandez à un administrateur de modifier les comptes.</span>
+          </div>
+        </Card>
+      </>
+    );
+  }
 
   return (
     <>
       <PageHeader
-        title="Administration de l’espace"
-        subtitle="Utilisateurs, rôles, sécurité et piste d’audit du Projet Atlas."
-        actions={<Button variant="primary" onClick={() => setShowInvite(true)}><UserPlus />Inviter un membre</Button>}
+        title="Administration"
+        subtitle="Comptes autorisés à utiliser cette installation."
+        actions={
+          inviting ? null : (
+            <Button variant="primary" onClick={() => { setInviting(true); setMessage(''); }}>
+              <UserPlus />Ajouter un membre
+            </Button>
+          )
+        }
       />
 
-      <div className="admin-kpis">
-        <Card><Users /><div><span>Utilisateurs</span><b>{members.length}</b><small>4 actifs · 1 suspendu</small></div></Card>
-        <Card><ShieldCheck /><div><span>Couverture MFA</span><b>80 %</b><small>1 compte à sécuriser</small></div></Card>
-        <Card><KeyRound /><div><span>Administrateurs</span><b>1</b><small>Revue trimestrielle conforme</small></div></Card>
-        <Card><History /><div><span>Événements d’audit</span><b>128</b><small>Sur les 30 derniers jours</small></div></Card>
+      {message ? <div className="pro-success-banner"><CheckCircle2 />{message}</div> : null}
+      {error ? <div className="pro-error-banner register-banner" role="alert"><XCircle />{error}</div> : null}
+
+      <div className="admin-summary">
+        <Card className="stat">
+          <div className="stat-icon"><Users /></div>
+          <div><label>Comptes</label><strong>{users.length}</strong><small>{users.filter((item) => item.isActive).length} actif(s)</small></div>
+        </Card>
+        <Card className="stat">
+          <div className="stat-icon"><ShieldCheck /></div>
+          <div><label>Administrateurs</label><strong>{admins}</strong><small>Le dernier ne peut être retiré</small></div>
+        </Card>
       </div>
 
-      {showInvite ? (
-        <Card className="pro-editor-card">
-          <CardTitle info={false} action={<Button aria-label="Fermer le formulaire" onClick={() => setShowInvite(false)}><X /></Button>}>Inviter un membre</CardTitle>
-          <form className="invite-form" onSubmit={inviteMember}>
-            <label>Nom complet<input name="name" required /></label><label>Adresse e-mail<input name="email" type="email" required /></label>
-            <label>Rôle<select name="role" defaultValue="Contributeur"><option>Administrateur</option><option>Risk manager</option><option>Analyste</option><option>Contributeur</option><option>Lecteur</option></select></label>
-            <label>Périmètre<input name="scope" defaultValue="Projet Atlas" required /></label>
-            <div><Button type="button" onClick={() => setShowInvite(false)}>Annuler</Button><Button type="submit" variant="primary">Envoyer l’invitation</Button></div>
+      {inviting ? (
+        <Card className="register-builder-card">
+          <CardTitle info={false}>Nouveau compte</CardTitle>
+          <form className="pro-form-grid register-project-form" onSubmit={submit}>
+            <label className="wide">Nom complet
+              <input value={form.fullName} onChange={(event) => setForm({ ...form, fullName: event.target.value })} required />
+            </label>
+            <label>Adresse e-mail
+              <input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} required />
+            </label>
+            <label>Rôle
+              <select value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as UserRole })}>
+                <option value="member">Membre</option>
+                <option value="admin">Administrateur</option>
+              </select>
+            </label>
+            <label>Mot de passe initial
+              <input type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} minLength={10} required />
+            </label>
+            <div className="builder-footer wide">
+              <span>Au moins 10 caractères. Le membre pourra le changer depuis son profil.</span>
+              <div>
+                <Button type="button" onClick={() => setInviting(false)}>Annuler</Button>
+                <Button variant="primary" type="submit">Créer le compte</Button>
+              </div>
+            </div>
           </form>
         </Card>
       ) : null}
 
-      <Card className="pro-admin-table">
+      <Card className="register-builder-card">
         <CardTitle info={false}>Membres et habilitations</CardTitle>
-        <div className="table-wrap"><table className="pro-table"><thead><tr><th>Utilisateur</th><th>Rôle</th><th>Périmètre</th><th>Dernière activité</th><th>MFA</th><th>Statut</th></tr></thead><tbody>{members.map((member) => <tr key={member.email}><td><div className="member-cell"><span>{member.initials}</span><div><b>{member.name}</b><small>{member.email}</small></div></div></td><td><select aria-label={`Rôle de ${member.name}`} value={member.role} onChange={(event) => updateRole(member.email, event.target.value)}><option>Administrateur</option><option>Risk manager</option><option>Analyste</option><option>Contributeur</option><option>Lecteur</option></select></td><td>{member.scope}</td><td>{member.lastSeen}</td><td><StatusPill tone={member.mfa ? 'green' : 'orange'}>{member.mfa ? 'Activée' : 'À activer'}</StatusPill></td><td><StatusPill tone={member.status === 'Actif' ? 'green' : member.status === 'Suspendu' ? 'gray' : 'blue'}>{member.status}</StatusPill></td></tr>)}</tbody></table></div>
+        {loading ? <p className="builder-intro">Chargement des comptes…</p> : null}
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Utilisateur</th><th>Rôle</th><th>Dernière connexion</th><th>Statut</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+              {users.map((item) => (
+                <tr key={item.id}>
+                  <td><b>{item.fullName}</b><br /><small>{item.email}</small></td>
+                  <td>{roleLabel[item.role]}</td>
+                  <td>{formatDate(item.lastLoginAt)}</td>
+                  <td>
+                    <StatusPill tone={item.isActive ? 'green' : 'gray'}>
+                      {item.isActive ? 'Actif' : 'Désactivé'}
+                    </StatusPill>
+                  </td>
+                  <td>
+                    <div className="admin-row-actions">
+                      <Button onClick={() => void patch(item, { role: item.role === 'admin' ? 'member' : 'admin' })}>
+                        {item.role === 'admin' ? 'Rétrograder' : 'Promouvoir'}
+                      </Button>
+                      <Button onClick={() => void patch(item, { isActive: !item.isActive })}>
+                        {item.isActive ? 'Désactiver' : 'Réactiver'}
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {!loading && !users.length ? <p className="note">Aucun compte à afficher.</p> : null}
       </Card>
-
-      <div className="pro-admin-grid">
-        <Card className="pro-panel">
-          <CardTitle info={false}>Matrice des responsabilités</CardTitle>
-          <div className="role-matrix">
-            <div><b>Administrateur</b><span>Paramètres, sécurité, membres et intégrations.</span><StatusPill tone="red">Accès sensible</StatusPill></div>
-            <div><b>Risk manager</b><span>Registre, scénarios, validation et rapports.</span><StatusPill tone="orange">Validation</StatusPill></div>
-            <div><b>Analyste</b><span>Configuration, exécution et analyse des simulations.</span><StatusPill tone="blue">Production</StatusPill></div>
-            <div><b>Lecteur</b><span>Consultation des résultats approuvés uniquement.</span><StatusPill tone="gray">Lecture</StatusPill></div>
-          </div>
-        </Card>
-        <Card className="pro-panel">
-          <CardTitle info={false}>Activité récente</CardTitle>
-          <ol className="audit-list">{auditEvents.map((event) => <li key={`${event.at}-${event.actor}`}><i /><div><b>{event.action}</b><span>{event.object}</span><small>{event.actor} · {event.at}</small></div></li>)}</ol>
-        </Card>
-      </div>
     </>
   );
 }

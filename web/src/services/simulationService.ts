@@ -1,5 +1,5 @@
 import { comparison, risks, scenarios, summary } from '../data/mockSimulation';
-import { apiFetch } from './accessSession';
+import { apiFetch } from './authSession';
 import type { RegisterValidation, RiskRegisterDraft, SimulationConfig, SimulationResponse, SimulationWorkspaceConfig } from '../types';
 
 async function apiError(response:Response,fallback:string){
