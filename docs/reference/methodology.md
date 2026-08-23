@@ -156,7 +156,7 @@ Elle permet de lire :
 - `P(total <= budget)` pour un budget donné ;
 - le budget correspondant à un niveau de confiance donné.
 
-Le workflow exporte une version statique, tandis que Streamlit construit une version interactive à partir des mêmes échantillons.
+Le workflow exporte une version statique, tandis que l'interface React construit une version interactive à partir des mêmes échantillons.
 
 ## 10. Sensibilité de Spearman
 
@@ -195,17 +195,17 @@ La convergence mesure la stabilité numérique de l'estimateur. Elle ne valide n
 
 ## 12. Restitution et interface
 
-Le cœur métier est indépendant de Streamlit. L'interface appelle `run_simulation_from_excel` puis transforme les échantillons et artefacts en vues Plotly interactives.
+Le cœur métier est indépendant de l'interface. Celle-ci appelle l'API HTTP, qui délègue à `run_simulation_from_excel`, puis transforme les échantillons et artefacts en vues interactives.
 
 Cette séparation garantit que la CLI et l'interface utilisent le même moteur et les mêmes règles de validation.
 
-Le niveau de décision affiché dans Streamlit peut être P50, P80, P90 ou P95. Les cartes de décision recalculent directement le quantile, la probabilité de dépassement et la réserve à partir des échantillons du run.
+Le niveau de décision affiché dans l'interface peut être P50, P80, P90 ou P95. Les cartes de décision recalculent directement le quantile, la probabilité de dépassement et la réserve à partir des échantillons du run.
 
 ## 13. Validation métier
 
 Les tests automatisés vérifient les invariants logiciels et numériques. La crédibilité des hypothèses nécessite une validation terrain séparée.
 
-Le protocole `docs/consultant_validation_workshop.md` demande notamment de documenter :
+Le protocole [`../archive/consultant_validation_workshop.md`](../archive/consultant_validation_workshop.md) demande notamment de documenter :
 
 - les paramètres contestés ;
 - la justification des corrélations non nulles ;

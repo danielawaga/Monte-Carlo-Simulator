@@ -26,9 +26,11 @@ from reportlab.platypus import (
 )
 
 ROOT = Path(__file__).resolve().parents[2]
-PDF = ROOT / "output" / "pdf" / "etude_cas_batiment_monte_carlo.pdf"
-TMP = ROOT / "tmp" / "pdfs" / "etude_cas_batiment" / "variant3"
-V3 = ROOT / "output" / "simulation_batiment_stress"
+# Sorties de travail de l'étude de cas : générées, jamais versionnées.
+WORK = ROOT / "data" / "output" / "case_study"
+PDF = ROOT / "reports" / "case_study" / "etude_cas_batiment_monte_carlo.pdf"
+TMP = WORK / "tmp" / "pdfs" / "etude_cas_batiment" / "variant3"
+V3 = WORK / "simulation_batiment_stress"
 
 FONT_PATH = Path("C:/Windows/Fonts/segoeui.ttf")
 BOLD_PATH = Path("C:/Windows/Fonts/segoeuib.ttf")

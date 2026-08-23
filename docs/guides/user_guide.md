@@ -96,25 +96,35 @@ The implementation uses a Gaussian copula with Cholesky decomposition. Invalid m
 
 A valid correlated run writes `correlation_diagnostics.csv` with numerical health evidence and `automatic_repair_applied = False`.
 
-## Run the Streamlit interface
+## Run the React interface
 
-Install UI dependencies and start the app:
+The interface talks to the Python engine over HTTP. Start the API first:
 
 ```bash
-pip install -e ".[ui]"
-streamlit run streamlit_app/app.py
+pip install -e ".[web]"
+uvicorn monte_carlo_simulator.web_api:app --port 8000
+```
+
+Then, in a second terminal, the frontend:
+
+```bash
+cd web
+npm install
+npm run dev
 ```
 
 The interface provides:
 
-- `.xlsx` upload;
+- `.xlsx` import and export of a schema-1.0 register;
+- an in-browser register builder, with a one-click reset back to the imported assumptions;
 - simulation count and seed controls;
 - P50/P80/P90/P95 decision-level selector;
-- interactive Plotly histogram and S-curve;
+- interactive histogram and S-curve;
 - baseline exceedance probability and reserve;
 - interactive Spearman tornado;
 - convergence view and correlation diagnostics;
-- individual artifact downloads and a ZIP bundle.
+- scenario snapshots and side-by-side scenario comparison;
+- an Excel results workbook and a ZIP bundle of every artifact.
 
 Validation failures are displayed with workbook context whenever available.
 
@@ -212,4 +222,4 @@ Real client and project registers must not be committed. Repository rules ignore
 
 ## Current extension boundary
 
-The S4 scope is implemented: Streamlit, tests/quality gate, user documentation, methodology note and handover material. Planned S5/S6 extensions include what-if analysis, scenario comparison, PDF/PowerPoint exports and calibration from authorized historical data.
+The S4 scope is implemented: interactive interface, tests/quality gate, user documentation, methodology note and handover material. Planned S5/S6 extensions include what-if analysis, scenario comparison, PDF/PowerPoint exports and calibration from authorized historical data.

@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { ArrowRight, CheckCircle2, Copy, Download, FilePlus2, Grid3X3, Info, Plus, Trash2, Upload, XCircle } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Copy, Download, FilePlus2, Grid3X3, Info, Plus, RotateCcw, Trash2, Upload, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Card, CardTitle, PageHeader, StatusPill } from '../../components/common';
 import { simulationService } from '../../services/simulationService';
@@ -61,7 +61,7 @@ function WorkflowGuidance({title,detail,action,onAction}:{title:string;detail:st
 export function RiskRegisterPage(){
   const navigate=useNavigate();
   const fileInput=useRef<HTMLInputElement>(null);
-  const {register,projectSource,setRegister,startNewProject,importProject}=useSimulation();
+  const {register,projectSource,canResetToImported,setRegister,startNewProject,importProject,resetToImported}=useSimulation();
   const [tab,setTab]=useState<RegisterTab>('project');
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState('');
@@ -79,6 +79,7 @@ export function RiskRegisterPage(){
   const addItem=()=>{const next=blankRisk(register.items.length+1,register.metadata.defaultUnit);changeItems([...register.items,next]);setTab('items')};
   const duplicateItem=(item:RiskDraft)=>changeItems([...register.items,{...item,id:`risk-${Date.now()}`,name:`${item.name} — copie`}]);
   const removeItem=(id:string)=>changeItems(register.items.filter((item)=>item.id!==id));
+  const resetAssumptions=()=>{resetToImported();setValidation(null);setError('');setMessage('Les hypothèses ont été ramenées au registre importé.')};
   const createProject=()=>{startNewProject();setValidation(null);setMessage('Nouveau projet créé. Les exemples en filigrane vous indiquent le format attendu.');setError('');setTab('project')};
 
   const validate=async()=>{
@@ -111,7 +112,7 @@ export function RiskRegisterPage(){
   };
 
   return <>
-    <PageHeader title="Registre de risques" subtitle="Préparez le projet, ses postes probabilistes et leurs dépendances dans un registre compatible avec le moteur." actions={<><input ref={fileInput} className="sr-only" type="file" accept=".xlsx" onChange={(event)=>void importExcel(event.target.files?.[0]??null)}/><Button onClick={()=>fileInput.current?.click()} disabled={busy}><Upload/>Importer Excel</Button><Button onClick={()=>void exportExcel()} disabled={busy||!canValidate} title={!canValidate?'Complétez le projet, les postes et les corrélations avant le téléchargement.':undefined}><Download/>Télécharger Excel</Button></>}/>
+    <PageHeader title="Registre de risques" subtitle="Préparez le projet, ses postes probabilistes et leurs dépendances dans un registre compatible avec le moteur." actions={<><input ref={fileInput} className="sr-only" type="file" accept=".xlsx" onChange={(event)=>void importExcel(event.target.files?.[0]??null)}/><Button onClick={()=>fileInput.current?.click()} disabled={busy}><Upload/>Importer Excel</Button>{canResetToImported?<Button onClick={resetAssumptions} disabled={busy} title="Annuler les modifications et revenir aux hypothèses du registre importé."><RotateCcw/>Réinitialiser les hypothèses</Button>:null}<Button onClick={()=>void exportExcel()} disabled={busy||!canValidate} title={!canValidate?'Complétez le projet, les postes et les corrélations avant le téléchargement.':undefined}><Download/>Télécharger Excel</Button></>}/>
     <div className="register-workflow" role="tablist" aria-label="Construction du registre">
       {([['project','1','Projet'],['items','2','Postes'],['correlations','3','Corrélations'],['validation','4','Validation']] as const).map(([value,index,label])=><button key={value} role="tab" aria-selected={tab===value} className={tab===value?'active':''} onClick={()=>setTab(value)}><i>{index}</i><span>{label}</span>{value==='items'?<small>{activeItems.length} actif{activeItems.length>1?'s':''}</small>:null}</button>)}
     </div>

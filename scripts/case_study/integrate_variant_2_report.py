@@ -27,11 +27,13 @@ from reportlab.platypus import (
 from monte_carlo_simulator.io import load_risk_register
 
 ROOT = Path(__file__).resolve().parents[2]
-PDF = ROOT / "output" / "pdf" / "etude_cas_batiment_monte_carlo.pdf"
-V1 = ROOT / "output" / "simulation_batiment"
-V2 = ROOT / "output" / "simulation_batiment_correlations"
-REGISTER = ROOT / "output" / "registre_risques_batiment_correlations.xlsx"
-TMP = ROOT / "tmp" / "pdfs" / "etude_cas_batiment" / "variant2"
+# Sorties de travail de l'étude de cas : générées, jamais versionnées.
+WORK = ROOT / "data" / "output" / "case_study"
+PDF = ROOT / "reports" / "case_study" / "etude_cas_batiment_monte_carlo.pdf"
+V1 = WORK / "simulation_batiment"
+V2 = WORK / "simulation_batiment_correlations"
+REGISTER = WORK / "registre_risques_batiment_correlations.xlsx"
+TMP = WORK / "tmp" / "pdfs" / "etude_cas_batiment" / "variant2"
 
 pdfmetrics.registerFont(TTFont("V2Regular", "C:/Windows/Fonts/segoeui.ttf"))
 pdfmetrics.registerFont(TTFont("V2Bold", "C:/Windows/Fonts/segoeuib.ttf"))

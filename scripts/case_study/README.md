@@ -37,7 +37,7 @@ python scripts/case_study/integrate_variant_3_report.py
 python scripts/case_study/integrate_validation_report.py
 ```
 
-L'ordre est obligatoire : le rapport initial produit la variante 1, puis chaque intégrateur remplace les chapitres finaux provisoires par la mise à jour suivante. Le résultat final est `output/pdf/etude_cas_batiment_monte_carlo.pdf`.
+L'ordre est obligatoire : le rapport initial produit la variante 1, puis chaque intégrateur remplace les chapitres finaux provisoires par la mise à jour suivante. Le résultat final est `reports/case_study/etude_cas_batiment_monte_carlo.pdf`.
 
 ## 5. Vérifications du dépôt
 

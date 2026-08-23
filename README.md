@@ -2,15 +2,14 @@
 
 Python application for probabilistic project cost and schedule risk analysis. The project turns an Excel risk register into a simulated total distribution, decision percentiles, baseline reserves, correlation diagnostics, convergence evidence and sensitivity outputs.
 
-## Current status — S5 interface & what-if workflow
+## Current status — S6 single React interface
 
-The repository now combines three layers:
+The repository combines two layers:
 
-- a tested Python Monte Carlo engine and application service;
-- the operational Streamlit interface used to import, edit and simulate risk assumptions;
-- a React + TypeScript + Vite interface under `web/`, structured around Configuration, Results and Scenario Comparison views.
+- a tested Python Monte Carlo engine, application service and HTTP API;
+- a React + TypeScript + Vite interface under `web/`, the single operational interface, structured around Risk register, Configuration, Results and Scenario Comparison views.
 
-The S5 work focuses on making the simulator easier to explore and use interactively without moving probabilistic logic out of Python.
+The Streamlit interface that carried the S4/S5 workflow has been removed: React now covers the whole end-to-end path — import, edit, reset to the imported assumptions, validate, simulate, analyse and export — and adds scenario comparison, which Streamlit never had. The probabilistic logic stays in Python.
 
 ### Available features
 
@@ -24,8 +23,8 @@ The S5 work focuses on making the simulator easier to explore and use interactiv
 - baseline exceedance probability and non-negative percentile reserves;
 - Spearman sensitivity and tornado chart;
 - cumulative percentile convergence diagnostics;
-- interactive Plotly visualizations with exact values on hover;
-- editable assumptions after Excel import in the Streamlit workflow;
+- interactive charts with exact values on hover, rendered as SVG by the React interface;
+- editable assumptions after Excel import, with a one-click reset back to the imported register;
 - reset/re-run workflow for lightweight what-if analysis;
 - React/TypeScript/Vite frontend with a risk-register builder, unified Simulation/Scenarios workspace and Results screen;
 - reproducible synthetic acceptance case and consultant-validation protocol;
@@ -41,33 +40,12 @@ Python 3.11+ is required.
 python -m venv .venv
 source .venv/bin/activate  # Windows PowerShell: .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -e ".[dev,ui]"
+pip install -e ".[dev,web]"
 ```
 
-## Streamlit interface — operational workflow
+## React / TypeScript interface — the operational workflow
 
-```bash
-streamlit run streamlit_app/app.py
-```
-
-The Streamlit application currently provides the complete end-to-end simulation path. A consultant can:
-
-1. upload a schema-1.0 `.xlsx` risk register;
-2. import its assumptions into an editable table;
-3. modify distributions and parameters directly from the interface;
-4. reset the assumptions to the imported state;
-5. validate the edited register before simulation;
-6. choose simulation count, seed and decision confidence level;
-7. inspect interactive Plotly views of the distribution and empirical S-curve;
-8. inspect Spearman sensitivity and the tornado view;
-9. read P50/P80/P90/P95, baseline exceedance probability and reserve;
-10. download the generated decision artifacts.
-
-Start with [`docs/user_guide_30min.md`](docs/user_guide_30min.md).
-
-## React / TypeScript interface — S6 integrated workflow
-
-The `web/` directory contains the S5 frontend built with React, TypeScript and Vite.
+The `web/` directory contains the frontend built with React, TypeScript and Vite. It is the only interface: there is no second UI to keep in sync.
 
 Main routes:
 
@@ -99,6 +77,33 @@ npm run build
 ```
 
 The `/risques` route builds or imports a schema-1.0 register, validates it through the Python engine and exports a compatible `.xlsx`, including an optional correlation matrix. `/configuration` reuses that shared register, groups execution standards and scenario documentation on one screen, and sends the draft directly to the API. `/resultats` displays the resulting indicators, histogram, S-curve and sensitivity ranking. The API delegates all probabilistic rules to `run_simulation_from_excel`; React remains responsible for editing, presentation and local scenario snapshots. Secondary workspace views still use demonstration data.
+
+## Access control — shared key
+
+The platform stores nothing server-side: there is no user directory, and every request works in a
+temporary directory destroyed once the response is sent. Access control is therefore a single shared
+secret rather than a user system — enough to keep a hosted deployment from being an open upload and
+compute endpoint, without introducing a database.
+
+Set `MCS_ACCESS_KEY` to enable it:
+
+```bash
+export MCS_ACCESS_KEY="a-long-random-shared-secret"
+uvicorn monte_carlo_simulator.web_api:app --port 8000
+```
+
+Behaviour:
+
+- **key not set** — the gate stays open, so local development and the test suite are unchanged. The
+  API logs a warning at startup;
+- **key set** — every API route requires the `X-Access-Key` header and answers `401` otherwise.
+  `/api/health` stays public for deployment probes and reports `accessControl: enabled | disabled`;
+- the React interface asks for the key on first load, checks it against `/api/session`, keeps it in
+  `sessionStorage` for the tab, and locks itself again if the API ever answers `401`.
+
+The key is a deployment secret, not a per-user credential: it is shared by everyone with access, so
+rotate it by changing the variable and restarting. It gives no per-user isolation and no audit trail —
+those require the persistence layer the platform does not yet have.
 
 ## CLI
 
@@ -186,7 +191,7 @@ Outputs are written under `data/output/s3_acceptance/`. This case validates the 
 
 For field validation, use:
 
-- [`docs/consultant_validation_workshop.md`](docs/consultant_validation_workshop.md);
+- [`docs/archive/consultant_validation_workshop.md`](docs/archive/consultant_validation_workshop.md);
 - [`data/templates/consultant_validation_log.csv`](data/templates/consultant_validation_log.csv).
 
 ## Quality
@@ -211,10 +216,9 @@ npm run build
 
 ```text
 web/                         React + TypeScript + Vite frontend
-
-streamlit_app/               Operational interactive interface
         |
-        v
+        v  HTTP (src/monte_carlo_simulator/web_api.py)
+        |
 src/monte_carlo_simulator/
   application/               Application orchestration
   models/                    Domain models
@@ -224,23 +228,37 @@ src/monte_carlo_simulator/
   io/                        Excel schema, validation and exports
   visualization/             Static/export visualizations
 
-tests/
-scripts/
-data/templates/
+tests/                       unit/ and integration/ suites
+scripts/                     register generators and case-study tooling
+data/
+  templates/                 public fictitious workbooks
+  input/                     sample inputs
+  output/                    runtime outputs — generated, never versioned
 docs/
+  guides/                    how to run and hand over the project
+  reference/                 architecture, methodology, documented case
+  validation/                published validation evidence
+  archive/                   dated deliverables kept as-is
+reports/                     generated deliverables (S5 report, case study)
 ```
 
-The interactive layers must remain thin: probabilistic rules belong in `src/monte_carlo_simulator`, not in Streamlit or React components.
+Two directory names carry a deliberate distinction: `data/output/` holds everything a run
+generates and is never versioned, while `reports/` holds the finished deliverables that are.
+
+The interactive layer must remain thin: probabilistic rules belong in `src/monte_carlo_simulator`, not in React components.
 
 ## Documentation
 
-- [30-minute user guide](docs/user_guide_30min.md)
-- [Detailed Excel/schema guide](docs/user_guide.md)
-- [Consultant-facing methodology note](docs/methodology_note.md)
-- [Technical methodology](docs/methodology.md)
-- [Technical handover](docs/handover.md)
-- [S4 oral restitution script](docs/s4_restitution.md)
+Start from the [documentation index](docs/README.md).
+
+- [30-minute user guide](docs/guides/user_guide_30min.md)
+- [Detailed Excel/schema guide](docs/guides/user_guide.md)
+- [Technical handover](docs/guides/handover.md)
+- [Consultant-facing methodology note](docs/reference/methodology_note.md)
+- [Technical methodology](docs/reference/methodology.md)
+- [Architecture](docs/reference/architecture.md)
 - [React frontend notes](web/README.md)
+- [Dated deliverables and working notes](docs/archive/)
 
 ## Known limitation
 
@@ -251,6 +269,7 @@ The current editable-hypotheses adapter exposes imported metadata and risk rows,
 - Do not commit real risk registers without anonymization and authorization.
 - Do not add client identifiers or personal data to examples or tests.
 - `.xlsx` and `.xls` files remain ignored globally except for the public fictitious template explicitly allowed by the repository rules.
+- Set `MCS_ACCESS_KEY` before exposing the API or the interface beyond localhost, and keep the key out of the repository: pass it through the environment, never through a committed file.
 
 ## Next steps
 

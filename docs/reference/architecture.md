@@ -62,7 +62,7 @@ erreurs de programmation en messages métier.
 
 ## Frontières actuelles
 
-La CLI est opérationnelle. `streamlit_app` reste un squelette. Les modules de convergence, sensibilité, courbe en S et tornade restent hors périmètre. Les corrélations par copule gaussienne sont implémentées pour les classeurs Excel qui fournissent une matrice strictement définie positive.
+La CLI est opérationnelle. L'interface React de `web/` était alors hors périmètre. Les modules de convergence, sensibilité, courbe en S et tornade restent hors périmètre. Les corrélations par copule gaussienne sont implémentées pour les classeurs Excel qui fournissent une matrice strictement définie positive.
 
 ## Sensitivity and tornado V1
 

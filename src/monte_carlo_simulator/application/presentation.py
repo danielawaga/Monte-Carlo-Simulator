@@ -1,7 +1,7 @@
 """Pure presentation helpers shared by the interactive application.
 
-The functions in this module deliberately avoid importing Streamlit or Plotly so that
-user-facing decision logic stays easy to test and reusable by future interfaces.
+The functions in this module deliberately avoid importing any UI or charting library so
+that user-facing decision logic stays easy to test and reusable by future interfaces.
 """
 
 from dataclasses import dataclass

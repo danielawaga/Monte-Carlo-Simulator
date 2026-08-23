@@ -23,18 +23,20 @@ from monte_carlo_simulator.models import RiskItem, SimulationConfig
 from monte_carlo_simulator.visualization.s_curve import compute_s_curve_data
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT = ROOT / "output" / "functional_validation"
+# Sorties de travail de l'étude de cas : générées, jamais versionnées.
+WORK = ROOT / "data" / "output" / "case_study"
+OUT = WORK / "functional_validation"
 FIXTURES = OUT / "invalid_fixtures"
-REFERENCE = ROOT / "output" / "registre_risques_batiment_correlations.xlsx"
+REFERENCE = WORK / "registre_risques_batiment_correlations.xlsx"
 VARIANTS = {
-    "V1": ROOT / "output" / "registre_risques_batiment_synthetique.xlsx",
+    "V1": WORK / "registre_risques_batiment_synthetique.xlsx",
     "V2": REFERENCE,
-    "V3": ROOT / "output" / "registre_risques_batiment_stress.xlsx",
+    "V3": WORK / "registre_risques_batiment_stress.xlsx",
 }
 RESULT_DIRS = {
-    "V1": ROOT / "output" / "simulation_batiment",
-    "V2": ROOT / "output" / "simulation_batiment_correlations",
-    "V3": ROOT / "output" / "simulation_batiment_stress",
+    "V1": WORK / "simulation_batiment",
+    "V2": WORK / "simulation_batiment_correlations",
+    "V3": WORK / "simulation_batiment_stress",
 }
 
 

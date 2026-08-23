@@ -3,17 +3,24 @@
 from __future__ import annotations
 
 import tempfile
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Literal
 
 import numpy as np
 import pandas as pd
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field
 
+from monte_carlo_simulator.access import (
+    ACCESS_KEY_HEADER,
+    gate_is_enabled,
+    log_gate_configuration,
+    verify_access_key,
+)
 from monte_carlo_simulator.application import (
     EditableRiskRegister,
     load_editable_risk_register,
@@ -31,9 +38,36 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE_PATH = REPOSITORY_ROOT / "data" / "templates" / "risk_register_template.xlsx"
 MAX_UPLOAD_BYTES = 12 * 1024 * 1024
 DEFAULT_LEVELS = (0.50, 0.80, 0.90, 0.95)
+PUBLIC_PATHS = frozenset({"/api/health"})
 XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 app = FastAPI(title="Monte Carlo Simulator API", version="0.3.0")
+log_gate_configuration()
+
+
+@app.middleware("http")
+async def enforce_access_key(
+    request: Request,
+    call_next: Callable[[Request], Awaitable[Response]],
+) -> Response:
+    """Reject every request that does not carry the shared secret.
+
+    Preflight requests never carry custom headers, and the health endpoint has
+    to stay reachable for deployment probes; everything else is gated.
+    """
+    if request.method == "OPTIONS" or request.url.path in PUBLIC_PATHS:
+        return await call_next(request)
+    if verify_access_key(request.headers.get(ACCESS_KEY_HEADER)):
+        return await call_next(request)
+    return JSONResponse(
+        status_code=401,
+        content={"detail": "Clé d’accès absente ou invalide."},
+        headers={"WWW-Authenticate": ACCESS_KEY_HEADER},
+    )
+
+
+# Registered last so it wraps the gate: a 401 still carries the CORS headers the
+# browser needs to read it, instead of surfacing as an opaque network error.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -287,7 +321,18 @@ async def _read_xlsx(file: UploadFile) -> bytes:
 
 @app.get("/api/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "engine": "monte-carlo-simulator"}
+    """Public probe, also used by the interface to discover whether the gate is on."""
+    return {
+        "status": "ok",
+        "engine": "monte-carlo-simulator",
+        "accessControl": "enabled" if gate_is_enabled() else "disabled",
+    }
+
+
+@app.get("/api/session")
+def session() -> dict[str, bool]:
+    """Confirm a submitted key opens the gate, without doing any simulation work."""
+    return {"authenticated": True}
 
 
 @app.get("/api/template")

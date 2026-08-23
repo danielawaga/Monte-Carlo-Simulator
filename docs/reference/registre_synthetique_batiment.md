@@ -256,4 +256,4 @@ Les classeurs sont générés avec `openpyxl` à partir du modèle public du dé
 Git conformément à la politique de confidentialité, mais les scripts sous `scripts/case_study/`
 permettent de les reconstruire. Les commandes exactes et l'ordre complet sont documentés dans le
 README de ce dossier. Les preuves tabulaires publiées se trouvent sous `docs/validation/` et le
-rapport évolutif final sous `output/pdf/`.
+rapport évolutif final sous `reports/case_study/`.
