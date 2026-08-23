@@ -26,7 +26,7 @@ from monte_carlo_simulator.io import (
     create_risk_register_workbook,
 )
 from monte_carlo_simulator.models import ExcelSimulationRun, SimulationConfig
-from monte_carlo_simulator.storage import accounts
+from monte_carlo_simulator.storage import accounts, projects
 from monte_carlo_simulator.web_auth import (
     Connection,
     CurrentAdmin,
@@ -48,7 +48,7 @@ app = FastAPI(title="Monte Carlo Simulator API", version="0.4.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_methods=["GET", "POST", "PATCH"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["*"],
     # The session cookie only travels on cross-origin calls when credentials
     # are allowed, which is what the Vite dev server needs.
@@ -160,6 +160,51 @@ class UserUpdatePayload(BaseModel):
 class PasswordChangePayload(BaseModel):
     currentPassword: str
     newPassword: str
+
+
+class SaveRegisterPayload(BaseModel):
+    # Same alias trick as DraftSimulationPayload: a plain ``register`` field
+    # would shadow an attribute of pydantic's BaseModel.
+    model_config = ConfigDict(populate_by_name=True)
+
+    name: str
+    registerDraft: RegisterDraftPayload = Field(alias="register")
+    registerId: int | None = None
+
+
+class SaveRunPayload(BaseModel):
+    label: str
+    config: DraftSimulationConfigPayload
+    result: dict[str, object]
+    registerId: int | None = None
+
+
+def _author_payload(author: projects.Author) -> dict[str, object]:
+    return {"id": author.id, "fullName": author.full_name}
+
+
+def _stored_register_payload(stored: projects.StoredRegister) -> dict[str, object]:
+    return {
+        "id": stored.id,
+        "name": stored.name,
+        "register": stored.payload,
+        "createdAt": stored.created_at,
+        "updatedAt": stored.updated_at,
+        "createdBy": _author_payload(stored.created_by),
+        "updatedBy": _author_payload(stored.updated_by),
+    }
+
+
+def _stored_run_payload(stored: projects.StoredRun) -> dict[str, object]:
+    return {
+        "id": stored.id,
+        "registerId": stored.register_id,
+        "label": stored.label,
+        "config": stored.config,
+        "result": stored.result,
+        "createdAt": stored.created_at,
+        "createdBy": _author_payload(stored.created_by),
+    }
 
 
 def _user_payload(user: accounts.User) -> dict[str, object]:
@@ -460,6 +505,82 @@ def update_account(
     if payload.isActive is not None:
         updated = accounts.set_active(connection, user_id, active=payload.isActive)
     return {"user": _user_payload(updated)}
+
+
+@app.get("/api/registers")
+def list_shared_registers(connection: Connection, user: CurrentUser) -> dict[str, object]:
+    """Every register on this installation — the team shares them all."""
+    return {
+        "registers": [
+            _stored_register_payload(stored) for stored in projects.list_registers(connection)
+        ]
+    }
+
+
+@app.post("/api/registers")
+def save_shared_register(
+    payload: SaveRegisterPayload, connection: Connection, user: CurrentUser
+) -> dict[str, object]:
+    stored = projects.save_register(
+        connection,
+        name=payload.name,
+        payload=payload.registerDraft.model_dump(by_alias=True),
+        author_id=user.id,
+        register_id=payload.registerId,
+    )
+    return {"register": _stored_register_payload(stored)}
+
+
+@app.get("/api/registers/{register_id}")
+def read_shared_register(
+    register_id: int, connection: Connection, user: CurrentUser
+) -> dict[str, object]:
+    stored = projects.get_register(connection, register_id)
+    if stored is None:
+        raise HTTPException(status_code=404, detail="Ce registre est introuvable.")
+    return {"register": _stored_register_payload(stored)}
+
+
+@app.delete("/api/registers/{register_id}")
+def remove_shared_register(
+    register_id: int, connection: Connection, admin: CurrentAdmin
+) -> dict[str, bool]:
+    """Reserved to administrators.
+
+    Editing is everyone's business here, but destroying shared work is not: the
+    runs produced from a register survive it, yet the assumptions themselves
+    would be gone for the whole team.
+    """
+    projects.delete_register(connection, register_id)
+    return {"deleted": True}
+
+
+@app.get("/api/runs")
+def list_shared_runs(
+    connection: Connection, user: CurrentUser, register_id: int | None = None
+) -> dict[str, object]:
+    return {
+        "runs": [
+            _stored_run_payload(stored)
+            for stored in projects.list_runs(connection, register_id=register_id)
+        ]
+    }
+
+
+@app.post("/api/runs")
+def save_shared_run(
+    payload: SaveRunPayload, connection: Connection, user: CurrentUser
+) -> dict[str, object]:
+    """Keep a completed simulation, so a figure sent to a client can be traced back."""
+    stored = projects.save_run(
+        connection,
+        label=payload.label,
+        config=payload.config.model_dump(),
+        result=payload.result,
+        author_id=user.id,
+        register_id=payload.registerId,
+    )
+    return {"run": _stored_run_payload(stored)}
 
 
 @app.get("/api/template", dependencies=[protected])

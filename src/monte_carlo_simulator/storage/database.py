@@ -22,7 +22,7 @@ DATA_DIR_ENV = "MCS_DATA_DIR"
 DATABASE_FILENAME = "monte_carlo.sqlite3"
 APPLICATION_DIRNAME = "MonteCarloSimulator"
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -49,6 +49,30 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at);
+
+CREATE TABLE IF NOT EXISTS registers (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT    NOT NULL,
+    payload     TEXT    NOT NULL,
+    created_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at  TEXT    NOT NULL,
+    updated_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    updated_at  TEXT    NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS runs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    register_id INTEGER REFERENCES registers(id) ON DELETE SET NULL,
+    label       TEXT    NOT NULL,
+    config      TEXT    NOT NULL,
+    result      TEXT    NOT NULL,
+    created_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at  TEXT    NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_registers_updated ON registers(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_runs_created ON runs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_runs_register ON runs(register_id);
 """
 
 
@@ -89,10 +113,19 @@ def connect(path: Path | None = None) -> sqlite3.Connection:
 
 
 def _apply_schema(connection: sqlite3.Connection) -> None:
+    """Create anything missing and record the schema version.
+
+    Every statement is ``IF NOT EXISTS``, so replaying the script on an older
+    database is itself the migration — which holds only as long as versions stay
+    purely additive. Renaming or dropping a column would need real migration
+    steps here, and the recorded version is what would drive them.
+    """
     connection.executescript(SCHEMA)
     row = connection.execute("SELECT version FROM schema_version").fetchone()
     if row is None:
         connection.execute("INSERT INTO schema_version (version) VALUES (?)", (SCHEMA_VERSION,))
+    elif row["version"] < SCHEMA_VERSION:
+        connection.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))
 
 
 @contextmanager

@@ -110,6 +110,24 @@ Everyone sees the same registers and results — the shared-work and traceabilit
 per-person isolation — while authorship is recorded. The last active administrator can be neither
 disabled nor demoted, so an installation can never become unadministrable.
 
+### Shared registers and runs
+
+Registers and completed runs live in the same database and are **shared by everyone**: any signed-in
+member sees every register, can pick up a colleague's work and continue it. That is the point of the
+single instance — no more mailing spreadsheets around.
+
+Authorship is recorded on every write and never used to hide anything. A register keeps both who
+created it and who last changed it, so a reserve figure that went to a client can be traced back to
+the person who produced it.
+
+Two deliberate asymmetries:
+
+- **deleting a register is reserved to administrators.** Editing is everyone's business; destroying
+  shared assumptions is not;
+- **runs outlive their register.** Deleting a register detaches its runs rather than erasing them —
+  a decision record that can quietly disappear is not a decision record. Authorship likewise
+  outlives the account: a removed user leaves their work behind, attributed to « Compte supprimé ».
+
 ### Sessions
 
 Sign-in returns an `httpOnly` session cookie, so page scripts cannot read the token. Sessions expire
