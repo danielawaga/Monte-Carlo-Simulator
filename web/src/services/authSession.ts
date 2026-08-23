@@ -29,7 +29,12 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
   return response;
 }
 
-async function postJson<T>(path: string, body: unknown, fallback: string): Promise<T> {
+/**
+ * For the public endpoints only — setup and sign-in — where a 401 means "wrong
+ * credentials" rather than "your session ended". Authenticated calls must go
+ * through `apiFetch`, which relocks the interface on 401.
+ */
+async function postPublicJson<T>(path: string, body: unknown, fallback: string): Promise<T> {
   const response = await fetch(path, {
     method: 'POST',
     credentials: 'same-origin',
@@ -38,6 +43,15 @@ async function postJson<T>(path: string, body: unknown, fallback: string): Promi
   });
   if (!response.ok) throw new Error(await detail(response, fallback));
   return response.json() as Promise<T>;
+}
+
+async function postAuthenticated(path: string, body: unknown, fallback: string): Promise<void> {
+  const response = await apiFetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new Error(await detail(response, fallback));
 }
 
 /** Ask the public health endpoint what the interface should show first. */
@@ -54,12 +68,12 @@ export async function readHealth(): Promise<HealthStatus> {
 export async function createFirstAdmin(
   input: { email: string; fullName: string; password: string },
 ): Promise<AuthUser> {
-  const payload = await postJson<{ user: AuthUser }>('/api/setup', input, 'L’initialisation a échoué.');
+  const payload = await postPublicJson<{ user: AuthUser }>('/api/setup', input, 'L’initialisation a échoué.');
   return payload.user;
 }
 
 export async function signIn(email: string, password: string): Promise<AuthUser> {
-  const payload = await postJson<{ user: AuthUser }>(
+  const payload = await postPublicJson<{ user: AuthUser }>(
     '/api/auth/login',
     { email, password },
     'La connexion a échoué.',
@@ -80,7 +94,11 @@ export async function readCurrentUser(): Promise<AuthUser | null> {
 }
 
 export async function changeOwnPassword(currentPassword: string, newPassword: string): Promise<void> {
-  await postJson('/api/account/password', { currentPassword, newPassword }, 'Le changement a échoué.');
+  await postAuthenticated(
+    '/api/account/password',
+    { currentPassword, newPassword },
+    'Le changement a échoué.',
+  );
 }
 
 export async function listUsers(): Promise<AuthUser[]> {

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthGate } from './AuthGate';
 import { AuthProvider } from '../../state/AuthContext';
+import { changeOwnPassword } from '../../services/authSession';
 import { simulationService } from '../../services/simulationService';
 
 type Reply = { status: number; body?: unknown };
@@ -134,5 +135,25 @@ describe('AuthGate', () => {
 
     expect(await screen.findByText('Service injoignable')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Réessayer' })).toBeVisible();
+  });
+
+  it('reverrouille aussi quand un changement de mot de passe est rejeté en 401', async () => {
+    // Une session expirée pendant que la page Profil reste ouverte : sans
+    // traitement du 401, l'interface resterait affichée comme connectée.
+    stubApi({
+      '/api/health': () => ({ status: 200, body: { setupRequired: false, authenticated: true } }),
+      '/api/auth/me': () => ({ status: 200, body: { user: AWA } }),
+      '/api/account/password': () => ({ status: 401, body: { detail: 'Authentification requise.' } }),
+    });
+
+    renderGate();
+    expect(await screen.findByText('Contenu protégé')).toBeVisible();
+
+    await expect(changeOwnPassword('ancien', 'nouveau-mot-de-passe')).rejects.toThrow(
+      'Authentification requise.',
+    );
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Connexion' })).toBeVisible());
+    expect(screen.queryByText('Contenu protégé')).toBeNull();
   });
 });

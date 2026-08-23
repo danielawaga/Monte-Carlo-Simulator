@@ -120,12 +120,24 @@ def create_first_admin(
     This is what makes a freshly installed executable usable without a command
     line. The window stays open only until the first account exists, so the
     administrator should be created right after the first launch.
+
+    The check and the insert run in one ``BEGIN IMMEDIATE`` transaction. The
+    connection is otherwise in autocommit, so without it two concurrent
+    first-run requests would both read an empty table and both succeed, handing
+    administrator access to whoever raced the legitimate installer.
     """
-    if has_any_user(connection):
-        raise AccountError("L'installation est déjà initialisée.")
-    return create_user(
-        connection, email=email, full_name=full_name, password=password, role="admin"
-    )
+    connection.execute("BEGIN IMMEDIATE")
+    try:
+        if has_any_user(connection):
+            raise AccountError("L'installation est déjà initialisée.")
+        admin = create_user(
+            connection, email=email, full_name=full_name, password=password, role="admin"
+        )
+    except BaseException:
+        connection.execute("ROLLBACK")
+        raise
+    connection.execute("COMMIT")
+    return admin
 
 
 def get_user(connection: sqlite3.Connection, user_id: int) -> User | None:
