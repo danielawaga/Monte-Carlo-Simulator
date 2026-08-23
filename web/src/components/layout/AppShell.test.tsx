@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import App from '../../App';
-import { AccessProvider } from '../../state/AccessContext';
+import { AuthProvider } from '../../state/AuthContext';
 import { SimulationProvider } from '../../state/SimulationContext';
 import { ThemeProvider } from '../../state/ThemeContext';
 
@@ -11,9 +11,9 @@ function renderApp() {
   return render(
     <MemoryRouter initialEntries={['/']}>
       <ThemeProvider>
-        <AccessProvider>
+        <AuthProvider>
           <SimulationProvider><App /></SimulationProvider>
-        </AccessProvider>
+        </AuthProvider>
       </ThemeProvider>
     </MemoryRouter>,
   );

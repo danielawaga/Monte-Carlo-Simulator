@@ -3,24 +3,17 @@
 from __future__ import annotations
 
 import tempfile
-from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Literal
 
 import numpy as np
 import pandas as pd
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from monte_carlo_simulator.access import (
-    ACCESS_KEY_HEADER,
-    gate_is_enabled,
-    log_gate_configuration,
-    verify_access_key,
-)
 from monte_carlo_simulator.application import (
     EditableRiskRegister,
     load_editable_risk_register,
@@ -33,47 +26,49 @@ from monte_carlo_simulator.io import (
     create_risk_register_workbook,
 )
 from monte_carlo_simulator.models import ExcelSimulationRun, SimulationConfig
+from monte_carlo_simulator.storage import accounts, projects
+from monte_carlo_simulator.web_auth import (
+    Connection,
+    CurrentAdmin,
+    CurrentUser,
+    OptionalUser,
+    SessionCookie,
+    clear_session_cookie,
+    current_user,
+    issue_session_cookie,
+)
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE_PATH = REPOSITORY_ROOT / "data" / "templates" / "risk_register_template.xlsx"
 MAX_UPLOAD_BYTES = 12 * 1024 * 1024
 DEFAULT_LEVELS = (0.50, 0.80, 0.90, 0.95)
-PUBLIC_PATHS = frozenset({"/api/health"})
 XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
-app = FastAPI(title="Monte Carlo Simulator API", version="0.3.0")
-log_gate_configuration()
-
-
-@app.middleware("http")
-async def enforce_access_key(
-    request: Request,
-    call_next: Callable[[Request], Awaitable[Response]],
-) -> Response:
-    """Reject every request that does not carry the shared secret.
-
-    Preflight requests never carry custom headers, and the health endpoint has
-    to stay reachable for deployment probes; everything else is gated.
-    """
-    if request.method == "OPTIONS" or request.url.path in PUBLIC_PATHS:
-        return await call_next(request)
-    if verify_access_key(request.headers.get(ACCESS_KEY_HEADER)):
-        return await call_next(request)
-    return JSONResponse(
-        status_code=401,
-        content={"detail": "Clé d’accès absente ou invalide."},
-        headers={"WWW-Authenticate": ACCESS_KEY_HEADER},
-    )
-
-
-# Registered last so it wraps the gate: a 401 still carries the CORS headers the
-# browser needs to read it, instead of surfacing as an opaque network error.
+app = FastAPI(title="Monte Carlo Simulator API", version="0.4.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["*"],
+    # The session cookie only travels on cross-origin calls when credentials
+    # are allowed, which is what the Vite dev server needs.
+    allow_credentials=True,
 )
+
+# Every simulation route requires a signed-in user. Public routes — health,
+# first-run setup and sign-in — declare it explicitly by overriding this.
+protected = Depends(current_user)
+
+
+@app.exception_handler(ValidationError)
+async def _validation_error(_request: Request, exc: ValidationError) -> JSONResponse:
+    """Turn a rejected business rule into 422 rather than a 500.
+
+    Account routes raise ``AccountError`` — a ``ValidationError`` — for a
+    duplicate address, a weak password or an attempt to remove the last
+    administrator. Without this the caller would see an opaque server error.
+    """
+    return JSONResponse(status_code=422, content={"detail": str(exc)})
 
 
 class ProjectMetadataPayload(BaseModel):
@@ -137,6 +132,91 @@ class ResultsExportPayload(BaseModel):
     result: dict[str, object]
     registerDraft: RegisterDraftPayload = Field(alias="register")
     config: DraftSimulationConfigPayload
+
+
+class CredentialsPayload(BaseModel):
+    email: str
+    password: str
+
+
+class SetupPayload(BaseModel):
+    email: str
+    fullName: str
+    password: str
+
+
+class NewUserPayload(BaseModel):
+    email: str
+    fullName: str
+    password: str
+    role: Literal["admin", "member"] = "member"
+
+
+class UserUpdatePayload(BaseModel):
+    role: Literal["admin", "member"] | None = None
+    isActive: bool | None = None
+
+
+class PasswordChangePayload(BaseModel):
+    currentPassword: str
+    newPassword: str
+
+
+class SaveRegisterPayload(BaseModel):
+    # Same alias trick as DraftSimulationPayload: a plain ``register`` field
+    # would shadow an attribute of pydantic's BaseModel.
+    model_config = ConfigDict(populate_by_name=True)
+
+    name: str
+    registerDraft: RegisterDraftPayload = Field(alias="register")
+    registerId: int | None = None
+
+
+class SaveRunPayload(BaseModel):
+    label: str
+    config: DraftSimulationConfigPayload
+    result: dict[str, object]
+    registerId: int | None = None
+
+
+def _author_payload(author: projects.Author) -> dict[str, object]:
+    return {"id": author.id, "fullName": author.full_name}
+
+
+def _stored_register_payload(stored: projects.StoredRegister) -> dict[str, object]:
+    return {
+        "id": stored.id,
+        "name": stored.name,
+        "register": stored.payload,
+        "createdAt": stored.created_at,
+        "updatedAt": stored.updated_at,
+        "createdBy": _author_payload(stored.created_by),
+        "updatedBy": _author_payload(stored.updated_by),
+    }
+
+
+def _stored_run_payload(stored: projects.StoredRun) -> dict[str, object]:
+    return {
+        "id": stored.id,
+        "registerId": stored.register_id,
+        "label": stored.label,
+        "config": stored.config,
+        "result": stored.result,
+        "createdAt": stored.created_at,
+        "createdBy": _author_payload(stored.created_by),
+    }
+
+
+def _user_payload(user: accounts.User) -> dict[str, object]:
+    return {
+        "id": user.id,
+        "email": user.email,
+        "fullName": user.full_name,
+        "role": user.role,
+        "isActive": user.is_active,
+        "createdAt": user.created_at,
+        "lastLoginAt": user.last_login_at,
+    }
 
 
 def _parse_levels(raw: str) -> tuple[float, ...]:
@@ -320,29 +400,197 @@ async def _read_xlsx(file: UploadFile) -> bytes:
 
 
 @app.get("/api/health")
-def health() -> dict[str, str]:
-    """Public probe, also used by the interface to discover whether the gate is on."""
+def health(connection: Connection, user: OptionalUser) -> dict[str, object]:
+    """Public probe. Also tells the interface which screen to show first."""
     return {
         "status": "ok",
         "engine": "monte-carlo-simulator",
-        "accessControl": "enabled" if gate_is_enabled() else "disabled",
+        "setupRequired": not accounts.has_any_user(connection),
+        "authenticated": user is not None,
     }
 
 
-@app.get("/api/session")
-def session() -> dict[str, bool]:
-    """Confirm a submitted key opens the gate, without doing any simulation work."""
-    return {"authenticated": True}
+@app.post("/api/setup")
+def setup(payload: SetupPayload, response: Response, connection: Connection) -> dict[str, object]:
+    """Create the founding administrator on a brand-new installation.
+
+    Deliberately public, and only usable while the database holds no account:
+    it is what lets a freshly installed executable be set up from the browser
+    without a command line. Create this account right after the first launch.
+    """
+    admin = accounts.create_first_admin(
+        connection,
+        email=payload.email,
+        full_name=payload.fullName,
+        password=payload.password,
+    )
+    issue_session_cookie(response, accounts.open_session(connection, admin.id))
+    return {"user": _user_payload(admin)}
 
 
-@app.get("/api/template")
+@app.post("/api/auth/login")
+def login(
+    payload: CredentialsPayload, response: Response, connection: Connection
+) -> dict[str, object]:
+    user = accounts.authenticate(connection, email=payload.email, password=payload.password)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Identifiants invalides.")
+    issue_session_cookie(response, accounts.open_session(connection, user.id))
+    return {"user": _user_payload(user)}
+
+
+@app.post("/api/auth/logout")
+def logout(
+    response: Response, connection: Connection, session: SessionCookie = None
+) -> dict[str, bool]:
+    if session:
+        accounts.close_session(connection, session)
+    clear_session_cookie(response)
+    return {"signedOut": True}
+
+
+@app.get("/api/auth/me")
+def me(user: CurrentUser) -> dict[str, object]:
+    return {"user": _user_payload(user)}
+
+
+@app.post("/api/account/password")
+def change_own_password(
+    payload: PasswordChangePayload,
+    response: Response,
+    connection: Connection,
+    user: CurrentUser,
+) -> dict[str, bool]:
+    """Change your own password, after proving you know the current one."""
+    if (
+        accounts.authenticate(connection, email=user.email, password=payload.currentPassword)
+        is None
+    ):
+        raise HTTPException(status_code=403, detail="Le mot de passe actuel est incorrect.")
+    accounts.change_password(connection, user.id, new_password=payload.newPassword)
+    # Changing the password closes every session, including this one, so a new
+    # cookie is issued to avoid signing the author out of their own browser.
+    issue_session_cookie(response, accounts.open_session(connection, user.id))
+    return {"changed": True}
+
+
+@app.get("/api/users")
+def list_accounts(connection: Connection, admin: CurrentAdmin) -> dict[str, object]:
+    return {"users": [_user_payload(user) for user in accounts.list_users(connection)]}
+
+
+@app.post("/api/users")
+def create_account(
+    payload: NewUserPayload, connection: Connection, admin: CurrentAdmin
+) -> dict[str, object]:
+    created = accounts.create_user(
+        connection,
+        email=payload.email,
+        full_name=payload.fullName,
+        password=payload.password,
+        role=payload.role,
+    )
+    return {"user": _user_payload(created)}
+
+
+@app.patch("/api/users/{user_id}")
+def update_account(
+    user_id: int, payload: UserUpdatePayload, connection: Connection, admin: CurrentAdmin
+) -> dict[str, object]:
+    updated = accounts.get_user(connection, user_id)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Ce compte est introuvable.")
+    if payload.role is not None:
+        updated = accounts.set_role(connection, user_id, role=payload.role)
+    if payload.isActive is not None:
+        updated = accounts.set_active(connection, user_id, active=payload.isActive)
+    return {"user": _user_payload(updated)}
+
+
+@app.get("/api/registers")
+def list_shared_registers(connection: Connection, user: CurrentUser) -> dict[str, object]:
+    """Every register on this installation — the team shares them all."""
+    return {
+        "registers": [
+            _stored_register_payload(stored) for stored in projects.list_registers(connection)
+        ]
+    }
+
+
+@app.post("/api/registers")
+def save_shared_register(
+    payload: SaveRegisterPayload, connection: Connection, user: CurrentUser
+) -> dict[str, object]:
+    stored = projects.save_register(
+        connection,
+        name=payload.name,
+        payload=payload.registerDraft.model_dump(by_alias=True),
+        author_id=user.id,
+        register_id=payload.registerId,
+    )
+    return {"register": _stored_register_payload(stored)}
+
+
+@app.get("/api/registers/{register_id}")
+def read_shared_register(
+    register_id: int, connection: Connection, user: CurrentUser
+) -> dict[str, object]:
+    stored = projects.get_register(connection, register_id)
+    if stored is None:
+        raise HTTPException(status_code=404, detail="Ce registre est introuvable.")
+    return {"register": _stored_register_payload(stored)}
+
+
+@app.delete("/api/registers/{register_id}")
+def remove_shared_register(
+    register_id: int, connection: Connection, admin: CurrentAdmin
+) -> dict[str, bool]:
+    """Reserved to administrators.
+
+    Editing is everyone's business here, but destroying shared work is not: the
+    runs produced from a register survive it, yet the assumptions themselves
+    would be gone for the whole team.
+    """
+    projects.delete_register(connection, register_id)
+    return {"deleted": True}
+
+
+@app.get("/api/runs")
+def list_shared_runs(
+    connection: Connection, user: CurrentUser, register_id: int | None = None
+) -> dict[str, object]:
+    return {
+        "runs": [
+            _stored_run_payload(stored)
+            for stored in projects.list_runs(connection, register_id=register_id)
+        ]
+    }
+
+
+@app.post("/api/runs")
+def save_shared_run(
+    payload: SaveRunPayload, connection: Connection, user: CurrentUser
+) -> dict[str, object]:
+    """Keep a completed simulation, so a figure sent to a client can be traced back."""
+    stored = projects.save_run(
+        connection,
+        label=payload.label,
+        config=payload.config.model_dump(),
+        result=payload.result,
+        author_id=user.id,
+        register_id=payload.registerId,
+    )
+    return {"run": _stored_run_payload(stored)}
+
+
+@app.get("/api/template", dependencies=[protected])
 def template() -> FileResponse:
     if not TEMPLATE_PATH.exists():
         raise HTTPException(status_code=404, detail="Le modèle Excel est indisponible.")
     return FileResponse(TEMPLATE_PATH, filename="risk_register_template.xlsx")
 
 
-@app.post("/api/simulate")
+@app.post("/api/simulate", dependencies=[protected])
 async def simulate(
     file: Annotated[UploadFile, File()],
     simulations: Annotated[int, Form()] = 10_000,
@@ -374,7 +622,7 @@ async def simulate(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
-@app.post("/api/register/import")
+@app.post("/api/register/import", dependencies=[protected])
 async def import_register(file: Annotated[UploadFile, File()]) -> dict[str, object]:
     content = await _read_xlsx(file)
     try:
@@ -386,7 +634,7 @@ async def import_register(file: Annotated[UploadFile, File()]) -> dict[str, obje
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
-@app.post("/api/register/validate")
+@app.post("/api/register/validate", dependencies=[protected])
 def validate_register(draft: RegisterDraftPayload) -> dict[str, object]:
     try:
         with tempfile.TemporaryDirectory(prefix="monte-carlo-validate-") as directory:
@@ -403,7 +651,7 @@ def validate_register(draft: RegisterDraftPayload) -> dict[str, object]:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
-@app.post("/api/register/export")
+@app.post("/api/register/export", dependencies=[protected])
 def export_register(draft: RegisterDraftPayload) -> Response:
     try:
         with tempfile.TemporaryDirectory(prefix="monte-carlo-export-") as directory:
@@ -418,7 +666,7 @@ def export_register(draft: RegisterDraftPayload) -> Response:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
-@app.post("/api/register/simulate")
+@app.post("/api/register/simulate", dependencies=[protected])
 def simulate_register(payload: DraftSimulationPayload) -> dict[str, object]:
     try:
         levels = tuple(level / 100 for level in payload.config.levels)
@@ -443,7 +691,7 @@ def simulate_register(payload: DraftSimulationPayload) -> dict[str, object]:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
-@app.post("/api/results/export")
+@app.post("/api/results/export", dependencies=[protected])
 def export_results(payload: ResultsExportPayload) -> Response:
     content = build_simulation_results_workbook(
         result=payload.result,
@@ -457,7 +705,7 @@ def export_results(payload: ResultsExportPayload) -> Response:
     )
 
 
-@app.post("/api/results/export-bundle")
+@app.post("/api/results/export-bundle", dependencies=[protected])
 def export_results_bundle(payload: ResultsExportPayload) -> Response:
     with tempfile.TemporaryDirectory(prefix="monte-carlo-bundle-") as directory:
         source, _editable = _validate_draft(payload.registerDraft, Path(directory))

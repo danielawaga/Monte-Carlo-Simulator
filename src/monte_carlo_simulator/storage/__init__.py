@@ -32,9 +32,33 @@ from monte_carlo_simulator.storage.passwords import (
     password_issue,
     verify_password,
 )
+from monte_carlo_simulator.storage.projects import (
+    Author,
+    ProjectError,
+    StoredRegister,
+    StoredRun,
+    delete_register,
+    get_register,
+    get_run,
+    list_registers,
+    list_runs,
+    save_register,
+    save_run,
+)
 
 __all__ = [
     "AccountError",
+    "Author",
+    "ProjectError",
+    "StoredRegister",
+    "StoredRun",
+    "delete_register",
+    "get_register",
+    "get_run",
+    "list_registers",
+    "list_runs",
+    "save_register",
+    "save_run",
     "Role",
     "User",
     "authenticate",

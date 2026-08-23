@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import sqlite3
+import threading
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -294,3 +295,71 @@ class TestAdministrationGuards:
             accounts.set_role(connection, 999, role="admin")
         with pytest.raises(AccountError, match="introuvable"):
             accounts.change_password(connection, 999, new_password="motdepasse-solide")
+
+
+class TestConcurrentSetup:
+    def test_only_one_founding_admin_survives_a_race(self, tmp_path: Path) -> None:
+        """Two first-run requests at once must not both produce an administrator.
+
+        The connection is in autocommit, so an unguarded check-then-insert lets
+        both callers read an empty table and both succeed — handing admin access
+        to whoever races the legitimate installer on a public setup route.
+        """
+        path = tmp_path / "race.sqlite3"
+        database.connect(path).close()
+        start = threading.Barrier(2)
+        outcomes: list[str] = []
+        lock = threading.Lock()
+
+        def attempt(email: str) -> None:
+            handle = database.connect(path)
+            try:
+                start.wait(timeout=5)
+                accounts.create_first_admin(
+                    handle, email=email, full_name="Candidat", password="motdepasse-solide"
+                )
+                result = "créé"
+            except AccountError:
+                result = "refusé"
+            finally:
+                handle.close()
+            with lock:
+                outcomes.append(result)
+
+        threads = [
+            threading.Thread(target=attempt, args=(f"admin{index}@exemple.fr",))
+            for index in range(2)
+        ]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=15)
+
+        assert sorted(outcomes) == ["créé", "refusé"]
+
+        verification = database.connect(path)
+        try:
+            assert len(accounts.list_users(verification)) == 1
+        finally:
+            verification.close()
+
+    def test_a_failed_setup_leaves_the_installation_open(self, tmp_path: Path) -> None:
+        """A rejected attempt must roll back, not half-initialise the database."""
+        path = tmp_path / "rollback.sqlite3"
+        handle = database.connect(path)
+        try:
+            with pytest.raises(AccountError):
+                accounts.create_first_admin(
+                    handle, email="admin@exemple.fr", full_name="Awa", password="court"
+                )
+
+            assert accounts.has_any_user(handle) is False
+            recovered = accounts.create_first_admin(
+                handle,
+                email="admin@exemple.fr",
+                full_name="Awa Diallo",
+                password="motdepasse-solide",
+            )
+            assert recovered.is_admin is True
+        finally:
+            handle.close()

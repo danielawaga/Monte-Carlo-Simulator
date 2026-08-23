@@ -1,72 +1,135 @@
 import { useState, type FormEvent } from 'react';
-import { CheckCircle2, KeyRound, Laptop, LockKeyhole, Save, ShieldCheck, Smartphone } from 'lucide-react';
+import { CheckCircle2, KeyRound, ShieldCheck, XCircle } from 'lucide-react';
 import { Button, Card, CardTitle, PageHeader, StatusPill } from '../../components/common';
+import { changeOwnPassword } from '../../services/authSession';
+import { useAuth } from '../../state/AuthContext';
+
+function initials(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/).slice(0, 2);
+  return parts.map((part) => part[0]?.toUpperCase() ?? '').join('') || '··';
+}
+
+function formatDate(value: string | null): string {
+  if (!value) return 'Jamais';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('fr-FR');
+}
 
 export function ProfilePage() {
-  const [editing, setEditing] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [secondarySessionRevoked, setSecondarySessionRevoked] = useState(false);
-  const [passwordEditing, setPasswordEditing] = useState(false);
-  const [securityMessage, setSecurityMessage] = useState('');
+  const { user } = useAuth();
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirmation, setConfirmation] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
-  const saveProfile = (event: FormEvent<HTMLFormElement>) => {
+  if (!user) return null;
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setEditing(false);
-    setSaved(true);
+    setMessage('');
+    setError('');
+    if (next !== confirmation) {
+      setError('Les deux saisies du nouveau mot de passe diffèrent.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await changeOwnPassword(current, next);
+      setMessage('Votre mot de passe a été changé. Vos autres navigateurs ont été déconnectés.');
+      setCurrent('');
+      setNext('');
+      setConfirmation('');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Le changement a échoué.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <>
       <PageHeader
         title="Profil et sécurité"
-        subtitle="Informations professionnelles, préférences personnelles et sécurité du compte."
-        actions={editing ? null : <Button variant="primary" onClick={() => { setEditing(true); setSaved(false); }}>Modifier le profil</Button>}
+        subtitle="Votre compte sur cette installation."
       />
 
-      {saved ? <div className="pro-success-banner"><CheckCircle2 />Votre profil a été mis à jour.</div> : null}
+      {message ? <div className="pro-success-banner"><CheckCircle2 />{message}</div> : null}
+      {error ? <div className="pro-error-banner register-banner" role="alert"><XCircle />{error}</div> : null}
 
       <div className="profile-layout">
         <Card className="identity-card">
-          <div className="identity-header"><div className="profile-avatar large">PD</div><div><h2>Pierre Dubois</h2><p>Directeur de programme · Administrateur</p><StatusPill>Compte actif</StatusPill></div></div>
-          <dl><div><dt>Organisation</dt><dd>Programme Atlas</dd></div><div><dt>Périmètre</dt><dd>Tous les projets</dd></div><div><dt>Compte créé</dt><dd>12 janvier 2026</dd></div><div><dt>Dernière connexion</dt><dd>17 août 2026 · 21:48</dd></div></dl>
+          <div className="identity-header">
+            <div className="profile-avatar large">{initials(user.fullName)}</div>
+            <div>
+              <h2>{user.fullName}</h2>
+              <p>{user.role === 'admin' ? 'Administrateur' : 'Membre'}</p>
+              <StatusPill tone={user.isActive ? 'green' : 'gray'}>
+                {user.isActive ? 'Compte actif' : 'Compte désactivé'}
+              </StatusPill>
+            </div>
+          </div>
+          <dl>
+            <div><dt>Adresse e-mail</dt><dd>{user.email}</dd></div>
+            <div><dt>Compte créé</dt><dd>{formatDate(user.createdAt)}</dd></div>
+            <div><dt>Dernière connexion</dt><dd>{formatDate(user.lastLoginAt)}</dd></div>
+          </dl>
         </Card>
 
         <Card className="security-score-card">
-          <ShieldCheck /><div><span>Niveau de sécurité</span><strong>Élevé</strong><small>4 contrôles sur 4 sont conformes.</small></div>
-          <ul><li><CheckCircle2 />Authentification multifacteur</li><li><CheckCircle2 />Mot de passe conforme</li><li><CheckCircle2 />Adresse e-mail vérifiée</li><li><CheckCircle2 />Sessions récentes contrôlées</li></ul>
-        </Card>
-      </div>
-
-      <form className="profile-details-form" onSubmit={saveProfile}>
-        <Card className="pro-settings-card">
-          <CardTitle info={false}>Informations professionnelles</CardTitle>
-          <div className="pro-form-grid">
-            <label>Prénom<input defaultValue="Pierre" disabled={!editing} /></label><label>Nom<input defaultValue="Dubois" disabled={!editing} /></label>
-            <label>Fonction<input defaultValue="Directeur de programme" disabled={!editing} /></label><label>Département<input defaultValue="Transformation & Risques" disabled={!editing} /></label>
-            <label>Adresse e-mail<input type="email" defaultValue="pierre.dubois@atlas-programme.ma" disabled={!editing} /></label><label>Téléphone<input defaultValue="+212 6 12 34 56 78" disabled={!editing} /></label>
-            <label>Langue<select defaultValue="fr" disabled={!editing}><option value="fr">Français</option><option value="en">English</option></select></label><label>Fuseau horaire<select defaultValue="Africa/Casablanca" disabled={!editing}><option>Africa/Casablanca</option><option>Europe/Paris</option><option>UTC</option></select></label>
+          <ShieldCheck />
+          <div>
+            <span>Où vivent vos données</span>
+            <strong>Sur cette machine</strong>
+            <small>
+              L’installation est locale au réseau de l’entreprise. Les comptes et les sessions sont
+              stockés dans une base locale ; rien n’est envoyé à l’extérieur.
+            </small>
           </div>
-          {editing ? <div className="form-inline-actions"><Button type="button" onClick={() => setEditing(false)}>Annuler</Button><Button variant="primary" type="submit"><Save />Enregistrer</Button></div> : null}
-        </Card>
-      </form>
-
-      <div className="pro-security-grid">
-        <Card className="pro-panel">
-          <CardTitle info={false}><span className="title-with-icon"><LockKeyhole />Authentification</span></CardTitle>
-          <div className="security-setting"><div><b>Mot de passe</b><span>Modifié il y a 34 jours · Conforme à la politique</span></div><Button onClick={() => { setPasswordEditing(true); setSecurityMessage(''); }}>Modifier</Button></div>
-          {passwordEditing ? <form className="security-password-form" onSubmit={(event) => { event.preventDefault(); setPasswordEditing(false); setSecurityMessage('Mot de passe mis à jour. Les autres sessions devront se reconnecter.'); }}><label>Mot de passe actuel<input type="password" required autoComplete="current-password" /></label><label>Nouveau mot de passe<input type="password" required minLength={12} autoComplete="new-password" /></label><div><Button type="button" onClick={() => setPasswordEditing(false)}>Annuler</Button><Button variant="primary" type="submit">Mettre à jour</Button></div></form> : null}
-          <div className="security-setting"><div><b>Authentification multifacteur</b><span>Application d’authentification configurée</span></div><StatusPill>Activée</StatusPill></div>
-          <div className="security-setting"><div><b>Codes de récupération</b><span>8 codes disponibles · Générés le 12/01/2026</span></div><Button onClick={() => setSecurityMessage('8 nouveaux codes de récupération ont été générés et les anciens invalidés.')}><KeyRound />Régénérer</Button></div>
-          {securityMessage ? <div className="pro-inline-confirmation"><CheckCircle2 />{securityMessage}</div> : null}
-        </Card>
-
-        <Card className="pro-panel">
-          <CardTitle info={false}>Sessions actives</CardTitle>
-          <div className="session-row"><Laptop /><div><b>Chrome · Casablanca</b><span>Linux · session actuelle</span><small>Dernière activité : maintenant</small></div><StatusPill>Actuelle</StatusPill></div>
-          {secondarySessionRevoked ? null : <div className="session-row"><Smartphone /><div><b>Safari · Rabat</b><span>iPhone · 196.70.xxx.xxx</span><small>Dernière activité : 16/08/2026 à 09:12</small></div><Button onClick={() => setSecondarySessionRevoked(true)}>Révoquer</Button></div>}
-          {secondarySessionRevoked ? <div className="pro-inline-confirmation"><CheckCircle2 />Session mobile révoquée.</div> : null}
         </Card>
       </div>
+
+      <Card className="register-builder-card">
+        <CardTitle info={false}><span className="title-with-icon"><KeyRound />Changer le mot de passe</span></CardTitle>
+        <form className="pro-form-grid register-project-form" onSubmit={submit}>
+          <label className="wide">Mot de passe actuel
+            <input
+              type="password"
+              value={current}
+              onChange={(event) => setCurrent(event.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </label>
+          <label>Nouveau mot de passe
+            <input
+              type="password"
+              value={next}
+              onChange={(event) => setNext(event.target.value)}
+              autoComplete="new-password"
+              minLength={10}
+              required
+            />
+          </label>
+          <label>Confirmer le nouveau mot de passe
+            <input
+              type="password"
+              value={confirmation}
+              onChange={(event) => setConfirmation(event.target.value)}
+              autoComplete="new-password"
+              minLength={10}
+              required
+            />
+          </label>
+          <div className="builder-footer wide">
+            <span>Au moins 10 caractères. Vos sessions ouvertes ailleurs seront fermées.</span>
+            <Button variant="primary" type="submit" disabled={busy}>
+              {busy ? 'Changement…' : 'Changer le mot de passe'}
+            </Button>
+          </div>
+        </form>
+      </Card>
     </>
   );
 }

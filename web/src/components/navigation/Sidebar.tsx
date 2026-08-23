@@ -16,8 +16,14 @@ import {
   X,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
-import { useAccess } from '../../state/AccessContext';
+import { useAuth } from '../../state/AuthContext';
 import { useTheme, type ThemePreference } from '../../state/ThemeContext';
+
+function initials(fullName: string | undefined): string {
+  if (!fullName) return '··';
+  const parts = fullName.trim().split(/\s+/).slice(0, 2);
+  return parts.map((part) => part[0]?.toUpperCase() ?? '').join('') || '··';
+}
 
 const Logo = ({ collapsed, onNavigate }: { collapsed: boolean; onNavigate: () => void }) => (
   <NavLink className="brand" to="/" aria-label="RiskSim — Accueil" onClick={onNavigate}>
@@ -57,7 +63,7 @@ type SidebarProps = {
 
 export function Sidebar({ collapsed, mobileOpen, onToggle, onNavigate, onMobileClose }: SidebarProps) {
   const { theme, setTheme } = useTheme();
-  const { gateEnabled, lock } = useAccess();
+  const { user, signOut } = useAuth();
 
   return (
     <aside className={`sidebar ${collapsed ? 'is-collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
@@ -89,17 +95,15 @@ export function Sidebar({ collapsed, mobileOpen, onToggle, onNavigate, onMobileC
             </button>
           ))}
         </div>
-        {gateEnabled ? (
-          <button type="button" className="nav-main lock-button" onClick={lock} title={collapsed ? 'Verrouiller la session' : undefined}>
-            <LockKeyhole /><span>Verrouiller la session</span>
-          </button>
-        ) : null}
+        <button type="button" className="nav-main lock-button" onClick={() => void signOut()} title={collapsed ? 'Se déconnecter' : undefined}>
+          <LockKeyhole /><span>Se déconnecter</span>
+        </button>
         <NavLink className="nav-main help-link" to="/aide" title={collapsed ? 'Aide & documentation' : undefined} onClick={onNavigate}>
           <CircleHelp /><span>Aide &amp; documentation</span>
         </NavLink>
-        <NavLink className="user user-link" to="/profil" title={collapsed ? 'Pierre Dubois' : undefined} onClick={onNavigate}>
-          <span>PD</span>
-          <div><strong>Pierre Dubois</strong><small>Chef de projet</small></div>
+        <NavLink className="user user-link" to="/profil" title={collapsed ? user?.fullName : undefined} onClick={onNavigate}>
+          <span>{initials(user?.fullName)}</span>
+          <div><strong>{user?.fullName ?? 'Compte'}</strong><small>{user?.role === 'admin' ? 'Administrateur' : 'Membre'}</small></div>
           <ChevronDown />
         </NavLink>
       </div>

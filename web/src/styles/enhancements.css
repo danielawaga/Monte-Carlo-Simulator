@@ -341,10 +341,10 @@ html[data-theme="dark"] .correlation-choice > label.selected { background: var(-
   .sidebar, .main, .sidebar-backdrop, body { transition: none; }
 }
 
-/* Porte d'accès partagée */
-.access-gate { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--app-bg); }
-.access-checking { color: var(--text-muted); font-size: 14px; }
-.access-card {
+/* Connexion et première configuration */
+.auth-gate { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--app-bg); }
+.auth-checking { color: var(--text-muted); font-size: 14px; }
+.auth-card {
   width: min(420px, 100%);
   display: flex;
   flex-direction: column;
@@ -356,13 +356,14 @@ html[data-theme="dark"] .correlation-choice > label.selected { background: var(-
   box-shadow: var(--shadow);
   color: var(--text);
 }
-.access-icon { width: 42px; height: 42px; padding: 10px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); }
-.access-card h1 { margin: 8px 0 0; font-size: 21px; letter-spacing: -.4px; }
-.access-card p { margin: 0; color: var(--text-muted); line-height: 1.6; }
-.access-card label { font-weight: 600; margin-top: 8px; }
-.access-card input { width: 100%; }
-.access-card .button { margin-top: 8px; }
-.access-error { color: var(--accent); font-weight: 600; }
+.auth-icon { width: 42px; height: 42px; padding: 10px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); }
+.auth-card h1 { margin: 8px 0 0; font-size: 21px; letter-spacing: -.4px; }
+.auth-card p { margin: 0; color: var(--text-muted); line-height: 1.6; }
+.auth-card label { font-weight: 600; margin-top: 8px; }
+.auth-card small { color: var(--text-muted); margin-top: -6px; }
+.auth-card input { width: 100%; }
+.auth-card .button { margin-top: 8px; }
+.auth-error { color: var(--accent); font-weight: 600; }
 .lock-button {
   width: 100%;
   height: 48px;
@@ -382,3 +383,16 @@ html[data-theme="dark"] .correlation-choice > label.selected { background: var(-
 .lock-button svg { width: 20px; flex: 0 0 auto; }
 .lock-button span { flex: 1; }
 .lock-button:hover { background: var(--surface-strong); color: var(--text); }
+
+/* Administration des comptes */
+.admin-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+.admin-row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.admin-row-actions .button { height: 30px; font-size: 11px; }
+@media (max-width: 780px) { .admin-summary { grid-template-columns: 1fr; } }
+
+/* Registres partagés */
+.shared-registers-card { padding-bottom: 8px; }
+.shared-publish-form { display: grid; grid-template-columns: 1.4fr 1fr auto; gap: 14px; align-items: end; padding: 0 16px 18px; }
+.shared-publish-form label { display: grid; gap: 8px; font-weight: 600; }
+.shared-publish-form input, .shared-publish-form select { width: 100%; }
+@media (max-width: 860px) { .shared-publish-form { grid-template-columns: 1fr; } }

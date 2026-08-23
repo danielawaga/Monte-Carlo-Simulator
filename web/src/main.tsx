@@ -2,8 +2,8 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
-import { AccessGate } from './components/access/AccessGate';
-import { AccessProvider } from './state/AccessContext';
+import { AuthGate } from './components/auth/AuthGate';
+import { AuthProvider } from './state/AuthContext';
 import { SimulationProvider } from './state/SimulationContext';
 import { ThemeProvider } from './state/ThemeContext';
 import './styles/global.css';
@@ -14,11 +14,11 @@ createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>
       <ThemeProvider>
-        <AccessProvider>
-          <AccessGate>
+        <AuthProvider>
+          <AuthGate>
             <SimulationProvider><App /></SimulationProvider>
-          </AccessGate>
-        </AccessProvider>
+          </AuthGate>
+        </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>
   </React.StrictMode>,
