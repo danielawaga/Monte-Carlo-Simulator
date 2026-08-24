@@ -181,3 +181,29 @@ class TestDeletion:
 
     def test_deleting_an_unknown_register_is_refused(self, client: TestClient) -> None:
         assert client.delete("/api/registers/999").status_code == 422
+
+
+class TestStorageLocation:
+    def test_it_reports_where_the_data_lives_and_how_much(self, client: TestClient) -> None:
+        """The interface has no other way to name the file worth backing up."""
+        empty = client.get("/api/storage").json()
+
+        assert empty["registers"] == 0
+        assert empty["runs"] == 0
+        assert empty["databasePath"].endswith(database.DATABASE_FILENAME)
+
+        register = _save(client, "Extension usine")
+        client.post(
+            "/api/runs",
+            json={
+                "label": "Décision P80",
+                "config": CONFIG,
+                "result": {},
+                "registerId": register["id"],
+            },
+        )
+
+        filled = client.get("/api/storage").json()
+        assert filled["registers"] == 1
+        assert filled["runs"] == 1
+        assert filled["databasePath"] == empty["databasePath"]

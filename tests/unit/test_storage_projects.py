@@ -306,3 +306,27 @@ class TestSchemaUpgrade:
             assert projects.save_register(upgraded, name="Neuf", payload=PAYLOAD).id
         finally:
             upgraded.close()
+
+
+class TestCounts:
+    def test_counting_does_not_depend_on_the_listing_limit(
+        self, connection: sqlite3.Connection
+    ) -> None:
+        """list_runs caps at 50 by default; a count that reused it would lie."""
+        register = projects.save_register(connection, name="Extension usine", payload=PAYLOAD)
+        for index in range(60):
+            projects.save_run(
+                connection,
+                label=f"Run {index}",
+                config=CONFIG,
+                result=RESULT,
+                register_id=register.id,
+            )
+
+        assert projects.count_registers(connection) == 1
+        assert projects.count_runs(connection) == 60
+        assert len(projects.list_runs(connection)) == 50, "la liste reste plafonnée"
+
+    def test_an_empty_database_counts_zero(self, connection: sqlite3.Connection) -> None:
+        assert projects.count_registers(connection) == 0
+        assert projects.count_runs(connection) == 0

@@ -4,6 +4,7 @@ import type {
   SavedRun,
   SimulationResponse,
   SimulationWorkspaceConfig,
+  StorageInfo,
 } from '../types';
 
 async function detail(response: Response, fallback: string): Promise<string> {
@@ -67,4 +68,11 @@ export async function saveRun(
   if (!response.ok) throw new Error(await detail(response, 'L’enregistrement de l’exécution a échoué.'));
   const payload = await response.json() as { run: SavedRun };
   return payload.run;
+}
+
+/** Where this installation keeps its data, and how much of it there is. */
+export async function readStorage(): Promise<StorageInfo> {
+  const response = await fetch('/api/storage');
+  if (!response.ok) throw new Error(await detail(response, 'L’emplacement des données est indisponible.'));
+  return await response.json() as StorageInfo;
 }
