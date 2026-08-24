@@ -7,7 +7,7 @@ const RESULT_STORAGE_KEY = 'risksim.result.v1';
 
 type StoredReference = { version: 1; result: SimulationResponse };
 type StoredResult = { version: 1; result: SimulationResponse };
-type StoredWorkspace = {version:1;register:RiskRegisterDraft;config:SimulationWorkspaceConfig;scenarios:SavedScenario[];projectSource?:ProjectSource};
+type StoredWorkspace = {version:1;register:RiskRegisterDraft;config:SimulationWorkspaceConfig;scenarios:SavedScenario[];projectSource?:ProjectSource;importedRegister?:RiskRegisterDraft|null;savedRegisterId?:number|null};
 type SimulationState = {
   result: SimulationResponse | null;
   reference: SimulationResponse | null;
@@ -15,10 +15,16 @@ type SimulationState = {
   projectSource: ProjectSource;
   config: SimulationWorkspaceConfig;
   scenarios: SavedScenario[];
+  /** True while an imported register is available to fall back on. */
+  canResetToImported: boolean;
+  /** Which saved register the current draft came from, so runs link back to it. */
+  savedRegisterId: number | null;
+  setSavedRegisterId: (value: number | null) => void;
   setResult: (value: SimulationResponse | null) => void;
   setRegister: (value: RiskRegisterDraft) => void;
   startNewProject: () => void;
   importProject: (value: RiskRegisterDraft) => void;
+  resetToImported: () => void;
   setConfig: (value: SimulationWorkspaceConfig) => void;
   saveScenario: () => SavedScenario;
   loadScenario: (id: string) => void;
@@ -82,11 +88,13 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
   const [projectSource,setProjectSource]=useState<ProjectSource>(stored?.projectSource??(stored&&(stored.register.metadata.projectName.trim()||stored.register.items.length)?'new':null));
   const [config,setConfig]=useState<SimulationWorkspaceConfig>(stored?.config??initialConfig);
   const [scenarios,setScenarios]=useState<SavedScenario[]>(stored?.scenarios??[]);
+  const [importedRegister,setImportedRegister]=useState<RiskRegisterDraft|null>(stored?.importedRegister??null);
+  const [savedRegisterId,setSavedRegisterId]=useState<number|null>(stored?.savedRegisterId??null);
 
   useEffect(()=>{
-    const value:StoredWorkspace={version:1,register,config,scenarios,projectSource};
+    const value:StoredWorkspace={version:1,register,config,scenarios,projectSource,importedRegister,savedRegisterId};
     window.localStorage.setItem(WORKSPACE_STORAGE_KEY,JSON.stringify(value));
-  },[config,projectSource,register,scenarios]);
+  },[config,importedRegister,projectSource,register,scenarios,savedRegisterId]);
 
   const setRegister=useCallback((value:RiskRegisterDraft)=>setRegisterState(value),[]);
 
@@ -94,16 +102,29 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
     setRegisterState(structuredClone(initialRegister));
     setConfig(structuredClone(initialConfig));
     setProjectSource('new');
+    setImportedRegister(null);
+    setSavedRegisterId(null);
     window.sessionStorage.removeItem(RESULT_STORAGE_KEY);
     setResultState(null);
   },[]);
 
   const importProject=useCallback((value:RiskRegisterDraft)=>{
     setRegisterState(value);
+    // Keep the imported workbook aside so edited assumptions can be rolled back to it.
+    setImportedRegister(structuredClone(value));
+    setSavedRegisterId(null);
     setProjectSource('imported');
     window.sessionStorage.removeItem(RESULT_STORAGE_KEY);
     setResultState(null);
   },[]);
+
+  const resetToImported=useCallback(()=>{
+    if(!importedRegister)return;
+    setRegisterState(structuredClone(importedRegister));
+    // The stored result was produced by the edited assumptions: it no longer matches.
+    window.sessionStorage.removeItem(RESULT_STORAGE_KEY);
+    setResultState(null);
+  },[importedRegister]);
 
   const setResult = useCallback((next: SimulationResponse | null) => {
     if (next) {
@@ -144,8 +165,8 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
   const deleteScenario=useCallback((id:string)=>setScenarios((current)=>current.filter((item)=>item.id!==id)),[]);
 
   const value = useMemo(
-    () => ({ result, reference, register, projectSource, config, scenarios, setResult, setRegister, startNewProject, importProject, setConfig, saveScenario, loadScenario, deleteScenario, freezeReference, clearReference }),
-    [clearReference, config, deleteScenario, freezeReference, importProject, loadScenario, projectSource, reference, register, result, saveScenario, scenarios, setRegister, startNewProject],
+    () => ({ result, reference, register, projectSource, config, scenarios, canResetToImported: importedRegister !== null && projectSource === 'imported', savedRegisterId, setSavedRegisterId, setResult, setRegister, startNewProject, importProject, resetToImported, setConfig, saveScenario, loadScenario, deleteScenario, freezeReference, clearReference }),
+    [clearReference, config, deleteScenario, freezeReference, importProject, importedRegister, loadScenario, projectSource, reference, register, resetToImported, result, saveScenario, scenarios, setRegister, savedRegisterId, startNewProject],
   );
   return <SimulationContext.Provider value={value}>{children}</SimulationContext.Provider>;
 }

@@ -7,8 +7,10 @@ from pathlib import Path
 from openpyxl import load_workbook
 
 ROOT = Path(__file__).resolve().parents[2]
+# Sorties de travail de l'étude de cas : générées, jamais versionnées.
+WORK = ROOT / "data" / "output" / "case_study"
 TEMPLATE = ROOT / "data" / "templates" / "risk_register_template.xlsx"
-OUTPUT = ROOT / "output" / "registre_risques_batiment_synthetique.xlsx"
+OUTPUT = WORK / "registre_risques_batiment_synthetique.xlsx"
 
 
 ROWS = [

@@ -1,4 +1,3 @@
-import { comparison, risks, scenarios, summary } from '../data/mockSimulation';
 import type { RegisterValidation, RiskRegisterDraft, SimulationConfig, SimulationResponse, SimulationWorkspaceConfig } from '../types';
 
 async function apiError(response:Response,fallback:string){
@@ -82,8 +81,4 @@ export const simulationService = {
   exportResults,
   exportResultsBundle,
   simulateDraft,
-  async getRisks() { return risks; },
-  async getSummary() { return summary; },
-  async getScenarios() { return scenarios; },
-  async getComparison() { return comparison; },
 };

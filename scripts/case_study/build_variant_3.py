@@ -7,8 +7,10 @@ from openpyxl import load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / "output" / "registre_risques_batiment_correlations.xlsx"
-OUTPUT = ROOT / "output" / "registre_risques_batiment_stress.xlsx"
+# Sorties de travail de l'étude de cas : générées, jamais versionnées.
+WORK = ROOT / "data" / "output" / "case_study"
+SOURCE = WORK / "registre_risques_batiment_correlations.xlsx"
+OUTPUT = WORK / "registre_risques_batiment_stress.xlsx"
 
 CONTINUOUS_STRESS = {
     "Terrassement": {"most_likely": 430_000, "maximum": 750_000},

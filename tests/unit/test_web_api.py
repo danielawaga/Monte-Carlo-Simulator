@@ -1,16 +1,28 @@
 """Contract tests for the React-to-Python HTTP adapter."""
 
+from collections.abc import Iterator
 from io import BytesIO
 from pathlib import Path
 from zipfile import ZipFile
 
+import pytest
 from fastapi.testclient import TestClient
 from openpyxl import load_workbook
 
 from monte_carlo_simulator.io import create_risk_register_workbook
+from monte_carlo_simulator.storage import database
 from monte_carlo_simulator.web_api import app
 
-client = TestClient(app)
+
+@pytest.fixture(autouse=True)
+def isolated_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(database.DATA_DIR_ENV, str(tmp_path / "data"))
+
+
+@pytest.fixture
+def client() -> Iterator[TestClient]:
+    with TestClient(app) as http:
+        yield http
 
 
 def _draft_payload() -> dict[str, object]:
@@ -56,14 +68,14 @@ def _draft_payload() -> dict[str, object]:
     }
 
 
-def test_health_endpoint_exposes_engine_status() -> None:
+def test_health_reports_a_working_engine(client: TestClient) -> None:
     response = client.get("/api/health")
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "engine": "monte-carlo-simulator"}
 
 
-def test_simulation_rejects_non_xlsx_upload() -> None:
+def test_simulation_rejects_non_xlsx_upload(client: TestClient) -> None:
     response = client.post(
         "/api/simulate",
         files={"file": ("register.csv", b"name,value", "text/csv")},
@@ -73,7 +85,7 @@ def test_simulation_rejects_non_xlsx_upload() -> None:
     assert response.json()["detail"] == "Seuls les registres .xlsx sont acceptés."
 
 
-def test_template_endpoint_returns_excel_workbook() -> None:
+def test_template_endpoint_returns_excel_workbook(client: TestClient) -> None:
     response = client.get("/api/template")
 
     assert response.status_code == 200
@@ -83,7 +95,9 @@ def test_template_endpoint_returns_excel_workbook() -> None:
     assert response.content.startswith(b"PK")
 
 
-def test_simulation_endpoint_runs_engine_and_preserves_correlations(tmp_path: Path) -> None:
+def test_simulation_endpoint_runs_engine_and_preserves_correlations(
+    client: TestClient, tmp_path: Path
+) -> None:
     workbook_path = tmp_path / "correlated.xlsx"
     create_risk_register_workbook(
         workbook_path,
@@ -138,7 +152,7 @@ def test_simulation_endpoint_runs_engine_and_preserves_correlations(tmp_path: Pa
     assert payload["sCurve"]
 
 
-def test_register_draft_can_be_validated_exported_and_imported() -> None:
+def test_register_draft_can_be_validated_exported_and_imported(client: TestClient) -> None:
     draft = _draft_payload()
 
     validation = client.post("/api/register/validate", json=draft)
@@ -172,7 +186,7 @@ def test_register_draft_can_be_validated_exported_and_imported() -> None:
     assert imported_register["correlations"]["values"] == [[1.0, 0.2], [0.2, 1.0]]
 
 
-def test_register_draft_can_launch_simulation() -> None:
+def test_register_draft_can_launch_simulation(client: TestClient) -> None:
     response = client.post(
         "/api/register/simulate",
         json={
@@ -195,7 +209,7 @@ def test_register_draft_can_launch_simulation() -> None:
     assert payload["run"]["correlationsEnabled"] is True
 
 
-def test_complete_results_can_be_exported_to_excel() -> None:
+def test_complete_results_can_be_exported_to_excel(client: TestClient) -> None:
     config = {
         "simulations": 120,
         "seed": 20260820,

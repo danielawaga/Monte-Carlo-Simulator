@@ -229,12 +229,11 @@ baseline, il n'y a pas de comparaison ; sans corrélations, il n'y a pas de diag
 
 ## 10. Sources internes utiles
 
-- `output/pdf/Feuille_de_route_1..pdf` ;
-- rapports PDF des semaines 1 à 4 dans `output/pdf/` ;
+- les rapports PDF sous `reports/` ;
 - `README.md` ;
-- `docs/methodology.md` et `docs/methodology_note.md` ;
-- `docs/architecture.md` ;
-- `docs/user_guide.md` et `docs/user_guide_30min.md` ;
+- `docs/reference/methodology.md` et `docs/reference/methodology_note.md` ;
+- `docs/reference/architecture.md` ;
+- `docs/guides/user_guide.md` et `docs/guides/user_guide_30min.md` ;
 - `docs/validation/` ;
 - `src/monte_carlo_simulator/engine/` et `src/monte_carlo_simulator/distributions/` ;
 - `tests/unit/` et `tests/integration/`.

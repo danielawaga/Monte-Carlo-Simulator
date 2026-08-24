@@ -4,33 +4,47 @@ Ce guide vise un consultant qui veut exécuter une simulation sans écrire de co
 
 ## 0–5 min — installer l'application
 
-Prérequis : Python 3.11 ou plus récent et Git.
+Prérequis : Python 3.11 ou plus récent, Node.js 20 ou plus récent, et Git.
 
-### Windows PowerShell
+L'application se lance en deux temps : le moteur Python expose une API, l'interface React la consomme.
+Prévoir **deux terminaux**.
+
+### Terminal 1 — le moteur
+
+Windows PowerShell :
 
 ```powershell
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -e ".[ui]"
-streamlit run streamlit_app/app.py
+pip install -e ".[web]"
+uvicorn monte_carlo_simulator.web_api:app --port 8000
 ```
 
-### Linux / macOS
+Linux / macOS :
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-pip install -e ".[ui]"
-streamlit run streamlit_app/app.py
+pip install -e ".[web]"
+uvicorn monte_carlo_simulator.web_api:app --port 8000
 ```
 
-Le navigateur ouvre l'interface. Si ce n'est pas le cas, utiliser l'adresse locale affichée par Streamlit dans le terminal.
+### Terminal 2 — l'interface
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+Ouvrir l'adresse affichée par Vite dans le terminal (par défaut `http://localhost:5173`). Si le
+déploiement est protégé par une clé d'accès partagée, l'interface la demande avant tout affichage.
 
 ## 5–10 min — partir du bon fichier Excel
 
-Utiliser `data/templates/risk_register_template.xlsx`, également téléchargeable depuis la barre latérale de l'application.
+Utiliser `data/templates/risk_register_template.xlsx`, également servi par l'API sur `/api/template`.
 
 Le classeur suit le schéma `1.0` et contient au minimum :
 
@@ -60,13 +74,22 @@ Si une feuille `correlations` est utilisée, la matrice doit être carrée, sym�
 
 ## 15–20 min — lancer la simulation
 
-Dans la barre latérale :
+Dans **Registre de risques** (menu latéral) :
 
-1. charger le fichier `.xlsx` ;
-2. choisir le nombre de tirages — `10 000` est le point de départ prévu par le projet ;
-3. conserver la seed `42` pour un run reproductible, ou choisir une autre seed ;
-4. choisir le niveau de décision `P50`, `P80`, `P90` ou `P95` ;
-5. cliquer sur **Lancer la simulation**.
+1. cliquer sur **Importer Excel** et choisir le fichier `.xlsx` ;
+2. parcourir les quatre étapes — Projet, Postes, Corrélations, Validation ;
+3. cliquer sur **Valider le registre**, puis sur **Configurer la simulation**.
+
+Les hypothèses restent modifiables après l'import. Le bouton **Réinitialiser les hypothèses** annule
+les modifications et revient au registre importé — utile pour enchaîner plusieurs what-if à partir du
+même point de départ.
+
+Dans **Simulation** :
+
+4. choisir le nombre de tirages — `10 000` est le point de départ prévu par le projet ;
+5. conserver la graine pour un run reproductible, ou en générer une autre ;
+6. cocher les percentiles voulus et choisir le niveau de décision `P50`, `P80`, `P90` ou `P95` ;
+7. lancer la simulation.
 
 En cas d'erreur de registre, l'interface affiche les problèmes avec la feuille, la ligne, le poste et le champ concernés quand ces informations sont disponibles.
 
@@ -81,7 +104,7 @@ En cas d'erreur de registre, l'interface affiche les problèmes avec la feuille,
 
 Exemple d'interprétation : si `P90 = 12,4 M MAD`, un budget de `12,4 M MAD` n'est dépassé que dans environ 10 % des tirages du modèle. Cela ne signifie pas que la vraie probabilité de dépassement est garantie à 10 % : la qualité du résultat dépend des hypothèses saisies.
 
-### Onglet Décision
+### Onglets Synthèse et Distribution
 
 - histogramme interactif de la distribution ;
 - S-curve, c'est-à-dire la probabilité cumulée de ne pas dépasser chaque valeur ;
@@ -90,15 +113,17 @@ Exemple d'interprétation : si `P90 = 12,4 M MAD`, un budget de `12,4 M MAD` n'e
 
 ### Onglet Sensibilité
 
+
 Le tornado classe les postes selon la corrélation de rang de Spearman entre leurs tirages et le total. Une forte valeur absolue signale un poste à examiner en priorité. Avec des entrées corrélées, ce classement reste descriptif : ce n'est ni une causalité ni un partage additif de la variance.
 
-### Onglet Convergence
+### Onglet Robustesse
 
-Le graphique suit la stabilité du percentile cible au fur et à mesure que le nombre de tirages augmente. Le critère automatique peut signaler un nombre de tirages à partir duquel les variations deviennent suffisamment faibles. Une convergence numérique correcte ne valide pas les hypothèses métier.
+Le graphique de convergence suit la stabilité du percentile cible au fur et à mesure que le nombre de tirages augmente. Le critère automatique peut signaler un nombre de tirages à partir duquel les variations deviennent suffisamment faibles. Une convergence numérique correcte ne valide pas les hypothèses métier.
 
 ## 25–30 min — exporter et tracer la décision
 
-L'onglet **Exports** permet de télécharger chaque artefact ou un ZIP complet. Selon le contenu du registre, le pack peut inclure :
+Depuis l'écran **Résultats**, le bouton d'export produit soit un classeur Excel de synthèse, soit un
+dossier ZIP complet. Selon le contenu du registre, le pack peut inclure :
 
 - `simulation_summary.csv` ;
 - `simulation_histogram.png` ;
@@ -142,4 +167,4 @@ python -m monte_carlo_simulator.cli \
   --output-dir data/output
 ```
 
-L'interface Streamlit et la CLI appellent le même moteur ; elles diffèrent surtout par la restitution et l'interaction utilisateur.
+L'interface React et la CLI appellent le même moteur ; elles diffèrent surtout par la restitution et l'interaction utilisateur.

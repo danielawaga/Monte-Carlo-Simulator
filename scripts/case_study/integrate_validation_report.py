@@ -17,9 +17,20 @@ from reportlab.pdfgen import canvas
 from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 ROOT = Path(__file__).resolve().parents[2]
-PDF = ROOT / "output" / "pdf" / "etude_cas_batiment_monte_carlo.pdf"
-DATA = ROOT / "output" / "functional_validation"
-TMP = ROOT / "tmp" / "pdfs" / "etude_cas_batiment" / "functional_validation"
+# Sorties de travail de l'étude de cas : générées, jamais versionnées.
+WORK = ROOT / "data" / "output" / "case_study"
+PDF = ROOT / "reports" / "case_study" / "etude_cas_batiment_monte_carlo.pdf"
+DATA = WORK / "functional_validation"
+TMP = (
+    ROOT
+    / "data"
+    / "output"
+    / "case_study"
+    / "tmp"
+    / "pdfs"
+    / "etude_cas_batiment"
+    / "functional_validation"
+)
 
 pdfmetrics.registerFont(TTFont("FVRegular", "C:/Windows/Fonts/segoeui.ttf"))
 pdfmetrics.registerFont(TTFont("FVBold", "C:/Windows/Fonts/segoeuib.ttf"))

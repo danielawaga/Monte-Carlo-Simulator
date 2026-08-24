@@ -2,17 +2,23 @@
 
 from __future__ import annotations
 
+import sqlite3
 import tempfile
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Literal
 
 import numpy as np
 import pandas as pd
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.responses import Response as StarletteResponse
+from starlette.types import Scope
 
 from monte_carlo_simulator.application import (
     EditableRiskRegister,
@@ -26,20 +32,46 @@ from monte_carlo_simulator.io import (
     create_risk_register_workbook,
 )
 from monte_carlo_simulator.models import ExcelSimulationRun, SimulationConfig
+from monte_carlo_simulator.resources import frontend_directory, resource_path
+from monte_carlo_simulator.storage import database, projects
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-TEMPLATE_PATH = REPOSITORY_ROOT / "data" / "templates" / "risk_register_template.xlsx"
+TEMPLATE_PATH = resource_path("data", "templates", "risk_register_template.xlsx")
 MAX_UPLOAD_BYTES = 12 * 1024 * 1024
 DEFAULT_LEVELS = (0.50, 0.80, 0.90, 0.95)
 XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
-app = FastAPI(title="Monte Carlo Simulator API", version="0.3.0")
+app = FastAPI(title="Monte Carlo Simulator API", version="0.5.0")
 app.add_middleware(
     CORSMiddleware,
+    # Only the Vite dev server talks to the API cross-origin; a packaged build
+    # serves the interface from this very process, same origin.
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
+
+
+def get_connection() -> Iterator[sqlite3.Connection]:
+    """Provide one database connection per request."""
+    connection = database.connect()
+    try:
+        yield connection
+    finally:
+        connection.close()
+
+
+Connection = Annotated[sqlite3.Connection, Depends(get_connection)]
+
+
+@app.exception_handler(ValidationError)
+async def _validation_error(_request: Request, exc: ValidationError) -> JSONResponse:
+    """Turn a rejected business rule into 422 rather than a 500.
+
+    Register routes raise ``ProjectError`` — a ``ValidationError`` — for an
+    empty name or an unknown identifier. Without this the caller would see an
+    opaque server error instead of the reason.
+    """
+    return JSONResponse(status_code=422, content={"detail": str(exc)})
 
 
 class ProjectMetadataPayload(BaseModel):
@@ -103,6 +135,44 @@ class ResultsExportPayload(BaseModel):
     result: dict[str, object]
     registerDraft: RegisterDraftPayload = Field(alias="register")
     config: DraftSimulationConfigPayload
+
+
+class SaveRegisterPayload(BaseModel):
+    # Same alias trick as DraftSimulationPayload: a plain ``register`` field
+    # would shadow an attribute of pydantic's BaseModel.
+    model_config = ConfigDict(populate_by_name=True)
+
+    name: str
+    registerDraft: RegisterDraftPayload = Field(alias="register")
+    registerId: int | None = None
+
+
+class SaveRunPayload(BaseModel):
+    label: str
+    config: DraftSimulationConfigPayload
+    result: dict[str, object]
+    registerId: int | None = None
+
+
+def _stored_register_payload(stored: projects.StoredRegister) -> dict[str, object]:
+    return {
+        "id": stored.id,
+        "name": stored.name,
+        "register": stored.payload,
+        "createdAt": stored.created_at,
+        "updatedAt": stored.updated_at,
+    }
+
+
+def _stored_run_payload(stored: projects.StoredRun) -> dict[str, object]:
+    return {
+        "id": stored.id,
+        "registerId": stored.register_id,
+        "label": stored.label,
+        "config": stored.config,
+        "result": stored.result,
+        "createdAt": stored.created_at,
+    }
 
 
 def _parse_levels(raw: str) -> tuple[float, ...]:
@@ -287,7 +357,89 @@ async def _read_xlsx(file: UploadFile) -> bytes:
 
 @app.get("/api/health")
 def health() -> dict[str, str]:
+    """Public probe, also used by the interface to confirm the engine answers."""
     return {"status": "ok", "engine": "monte-carlo-simulator"}
+
+
+@app.get("/api/registers")
+def list_registers(connection: Connection) -> dict[str, object]:
+    """Every register saved on this installation."""
+    return {
+        "registers": [
+            _stored_register_payload(stored) for stored in projects.list_registers(connection)
+        ]
+    }
+
+
+@app.post("/api/registers")
+def save_register(payload: SaveRegisterPayload, connection: Connection) -> dict[str, object]:
+    stored = projects.save_register(
+        connection,
+        name=payload.name,
+        payload=payload.registerDraft.model_dump(by_alias=True),
+        register_id=payload.registerId,
+    )
+    return {"register": _stored_register_payload(stored)}
+
+
+@app.get("/api/registers/{register_id}")
+def read_register(register_id: int, connection: Connection) -> dict[str, object]:
+    stored = projects.get_register(connection, register_id)
+    if stored is None:
+        raise HTTPException(status_code=404, detail="Ce registre est introuvable.")
+    return {"register": _stored_register_payload(stored)}
+
+
+@app.delete("/api/registers/{register_id}")
+def remove_register(register_id: int, connection: Connection) -> dict[str, bool]:
+    """Remove a register, keeping the runs it produced.
+
+    The foreign key is ON DELETE SET NULL rather than CASCADE: tidying up
+    obsolete assumptions must not erase the decisions taken from them.
+    """
+    projects.delete_register(connection, register_id)
+    return {"deleted": True}
+
+
+@app.get("/api/runs")
+def list_runs(connection: Connection, register_id: int | None = None) -> dict[str, object]:
+    return {
+        "runs": [
+            _stored_run_payload(stored)
+            for stored in projects.list_runs(connection, register_id=register_id)
+        ]
+    }
+
+
+@app.post("/api/runs")
+def save_run(payload: SaveRunPayload, connection: Connection) -> dict[str, object]:
+    """Keep a completed simulation, so a figure sent to a client can be traced back.
+
+    Each desk keeps its own history; nothing leaves this machine.
+    """
+    stored = projects.save_run(
+        connection,
+        label=payload.label,
+        config=payload.config.model_dump(),
+        result=payload.result,
+        register_id=payload.registerId,
+    )
+    return {"run": _stored_run_payload(stored)}
+
+
+@app.get("/api/storage")
+def storage(connection: Connection) -> dict[str, object]:
+    """Where this installation keeps its data, and how much of it there is.
+
+    The interface has no other way to tell someone which file holds their
+    registers — which is the file they need to back up, and the one only disk
+    encryption protects.
+    """
+    return {
+        "databasePath": str(database.database_path()),
+        "registers": projects.count_registers(connection),
+        "runs": projects.count_runs(connection),
+    }
 
 
 @app.get("/api/template")
@@ -427,3 +579,39 @@ def export_results_bundle(payload: ResultsExportPayload) -> Response:
         media_type="application/zip",
         headers={"Content-Disposition": 'attachment; filename="dossier_resultats_monte_carlo.zip"'},
     )
+
+
+class SinglePageFiles(StaticFiles):
+    """Static files with a real single-page-application fallback.
+
+    ``StaticFiles(html=True)`` only serves an index for *directory* requests; an
+    unknown path still answers 404. That breaks the routes the interface owns —
+    opening or refreshing ``/risques`` would fail — so an unmatched GET returns
+    ``index.html`` and lets the router decide. Anything under ``/api`` is left
+    alone: a mistyped endpoint must stay a 404, not silently return a web page.
+    """
+
+    async def get_response(self, path: str, scope: Scope) -> StarletteResponse:
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            if exc.status_code != 404 or path.startswith("api/"):
+                raise
+            return await super().get_response("index.html", scope)
+
+
+def mount_frontend() -> bool:
+    """Serve the built interface from this same process, when it is present.
+
+    Mounted last and on purpose: a catch-all at ``/`` would otherwise swallow
+    every ``/api`` route declared above it. Returning False simply means the
+    interface is served elsewhere — by the Vite dev server during development.
+    """
+    directory = frontend_directory()
+    if directory is None:
+        return False
+    app.mount("/", SinglePageFiles(directory=directory, html=True), name="frontend")
+    return True
+
+
+mount_frontend()

@@ -1,6 +1,5 @@
 import {
   BarChart3,
-  ChevronDown,
   CircleHelp,
   ClipboardList,
   Dices,
@@ -11,7 +10,6 @@ import {
   PanelLeftOpen,
   Settings,
   Sun,
-  Users,
   X,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
@@ -36,7 +34,6 @@ const navigation = [
   { to: '/configuration', label: 'Simulation', icon: Dices },
   { to: '/resultats', label: 'Résultats', icon: BarChart3 },
   { to: '/parametres', label: 'Paramètres', icon: Settings },
-  { to: '/administration', label: 'Administration', icon: Users },
 ] as const;
 
 const themes: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
@@ -88,11 +85,6 @@ export function Sidebar({ collapsed, mobileOpen, onToggle, onNavigate, onMobileC
         </div>
         <NavLink className="nav-main help-link" to="/aide" title={collapsed ? 'Aide & documentation' : undefined} onClick={onNavigate}>
           <CircleHelp /><span>Aide &amp; documentation</span>
-        </NavLink>
-        <NavLink className="user user-link" to="/profil" title={collapsed ? 'Pierre Dubois' : undefined} onClick={onNavigate}>
-          <span>PD</span>
-          <div><strong>Pierre Dubois</strong><small>Chef de projet</small></div>
-          <ChevronDown />
         </NavLink>
       </div>
     </aside>

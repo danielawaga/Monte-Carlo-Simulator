@@ -22,14 +22,16 @@ src/monte_carlo_simulator/
   io/              import Excel et exports CSV
   visualization/   graphiques statiques exportés
   application/     orchestration des workflows
-streamlit_app/      interface interactive
+web/                interface React + TypeScript (seule interface)
+  storage/          base SQLite locale : registres enregistrés et historique
 scripts/            génération de cas et validation reproductible
 tests/              tests unitaires et d'intégration
 data/templates/     modèles publics et fictifs
-docs/               guides, méthode et protocoles
+docs/               guides/, reference/, validation/ et archive/
+reports/            livrables générés (rapport S5, étude de cas)
 ```
 
-Le principe important est que Streamlit ne contient pas le moteur métier. L'interface appelle `run_simulation_from_excel`, qui orchestre le même workflow que la CLI.
+Le principe important est que l'interface ne contient pas le moteur métier. Elle appelle l'API HTTP (`web_api.py`), qui délègue à `run_simulation_from_excel` — le même workflow que la CLI.
 
 ## 3. Installation de reprise
 
@@ -38,7 +40,7 @@ python -m venv .venv
 source .venv/bin/activate       # Linux/macOS
 # .venv\Scripts\Activate.ps1  # Windows PowerShell
 python -m pip install --upgrade pip
-pip install -e ".[dev,ui]"
+pip install -e ".[dev,web]"
 ```
 
 Vérifications :
@@ -55,11 +57,24 @@ mypy src/monte_carlo_simulator
 
 ### Interface consultant
 
+Deux terminaux. D'abord l'API Python :
+
 ```bash
-streamlit run streamlit_app/app.py
+pip install -e ".[web]"
+uvicorn monte_carlo_simulator.web_api:app --reload --port 8000
 ```
 
-Charger `data/templates/risk_register_template.xlsx`, lancer 10 000 tirages, changer P80/P90 et télécharger le ZIP d'artefacts.
+Puis l'interface :
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+Ouvrir l'adresse affichée par Vite, aller dans « Registre de risques », importer
+`data/templates/risk_register_template.xlsx`, lancer 10 000 tirages, changer P80/P90 et télécharger
+le dossier ZIP d'artefacts depuis l'écran Résultats.
 
 ### CLI
 
@@ -109,7 +124,7 @@ Un run avec baseline ajoute la comparaison et les réserves. Un run avec corrél
 - Nouveau contrôle de registre : `io/` et tests de validation Excel.
 - Nouvel indicateur analytique : `analysis/`, export éventuel puis branchement dans `application/service.py`.
 - Nouveau graphique statique : `visualization/`.
-- Nouvelle restitution interactive sans nouvelle logique métier : `streamlit_app/app.py`.
+- Nouvelle restitution interactive sans nouvelle logique métier : `web/src/`.
 - Nouveau workflow complet : `application/`.
 
 ## 8. Diagnostic rapide en cas de problème
@@ -120,7 +135,7 @@ Lire toutes les erreurs agrégées avant de modifier le fichier. Les plus fréqu
 
 ### La simulation fonctionne mais l'interface casse
 
-Tester d'abord la CLI avec le même fichier. Si la CLI fonctionne, isoler le problème dans la couche Streamlit / Plotly. Si la CLI échoue aussi, remonter vers le service puis le loader ou le moteur.
+Tester d'abord la CLI avec le même fichier. Si la CLI fonctionne, isoler le problème dans l'API HTTP puis dans la couche React. Si la CLI échoue aussi, remonter vers le service puis le loader ou le moteur.
 
 ### Le résultat semble faux mais les tests passent
 
@@ -131,9 +146,9 @@ Les tests valident surtout le comportement logiciel. Revenir aux hypothèses mé
 La session est considérée comme terminée lorsque le repreneur a lui-même :
 
 - [ ] cloné ou récupéré le dépôt ;
-- [ ] créé l'environnement et installé `.[dev,ui]` ;
+- [ ] créé l'environnement et installé `.[dev,web]` ;
 - [ ] exécuté la suite de tests ;
-- [ ] lancé Streamlit ;
+- [ ] lancé l'API puis l'interface React ;
 - [ ] chargé le modèle Excel ;
 - [ ] produit un run à 10 000 tirages ;
 - [ ] expliqué P50, P80, P90 et la probabilité de dépassement ;

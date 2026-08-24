@@ -10,8 +10,10 @@ from openpyxl.formatting.rule import ColorScaleRule
 from openpyxl.styles import Alignment, Font, PatternFill
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / "output" / "registre_risques_batiment_synthetique.xlsx"
-OUTPUT = ROOT / "output" / "registre_risques_batiment_correlations.xlsx"
+# Sorties de travail de l'étude de cas : générées, jamais versionnées.
+WORK = ROOT / "data" / "output" / "case_study"
+SOURCE = WORK / "registre_risques_batiment_synthetique.xlsx"
+OUTPUT = WORK / "registre_risques_batiment_correlations.xlsx"
 
 HEADER_FILL = PatternFill("solid", fgColor="1F4E78")
 HEADER_FONT = Font(color="FFFFFF", bold=True)

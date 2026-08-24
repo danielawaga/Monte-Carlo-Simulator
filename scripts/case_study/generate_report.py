@@ -24,10 +24,12 @@ from reportlab.platypus import (
 )
 
 ROOT = Path(__file__).resolve().parents[2]
-OUTPUT = ROOT / "output" / "pdf" / "etude_cas_batiment_monte_carlo.pdf"
-TMP = ROOT / "tmp" / "pdfs" / "etude_cas_batiment"
-HISTOGRAM = ROOT / "output" / "simulation_batiment" / "simulation_histogram.png"
-TORNADO = ROOT / "output" / "simulation_batiment" / "sensitivity_tornado.png"
+# Sorties de travail de l'étude de cas : générées, jamais versionnées.
+WORK = ROOT / "data" / "output" / "case_study"
+OUTPUT = ROOT / "reports" / "case_study" / "etude_cas_batiment_monte_carlo.pdf"
+TMP = WORK / "tmp" / "pdfs" / "etude_cas_batiment"
+HISTOGRAM = WORK / "simulation_batiment" / "simulation_histogram.png"
+TORNADO = WORK / "simulation_batiment" / "sensitivity_tornado.png"
 BASELINE_CHART = TMP / "baseline_percentiles.png"
 
 NAVY = colors.HexColor("#17365D")
