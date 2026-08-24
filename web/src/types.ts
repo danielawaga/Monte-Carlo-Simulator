@@ -43,8 +43,6 @@ export type SavedScenario={
   register:RiskRegisterDraft;
 };
 export type RegisterValidation={valid:boolean;projectName:string;totalItems:number;activeItems:number;correlationsEnabled:boolean};
-export type SimulationSummary={mean:string;p80:string;p90:string;exceedance:string;baseline:string;reserve:string};
-export type Scenario={name:string;color:'blue'|'green';description:string;p80:string;p90:string;reserve:string};
 export type NumericRecord=Record<string,number|string|boolean|null>;
 export type SimulationResponse={
   project:{name:string;analysisType:string;unit:string;baseline:number|null};
@@ -74,4 +72,10 @@ export type SavedRun = {
   config: SimulationWorkspaceConfig;
   result: SimulationResponse;
   createdAt: string;
+};
+
+export type StorageInfo = {
+  databasePath: string;
+  registers: number;
+  runs: number;
 };

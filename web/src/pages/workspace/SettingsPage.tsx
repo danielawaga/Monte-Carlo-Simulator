@@ -1,73 +1,106 @@
-import { useState, type FormEvent } from 'react';
-import { Bell, Database, Globe2, Save } from 'lucide-react';
-import { Button, Card, CardTitle, PageHeader, StatusPill } from '../../components/common';
+import { useEffect, useState } from 'react';
+import { Database, HardDrive, Monitor, Moon, Palette, ShieldAlert, Sun } from 'lucide-react';
+import { Card, CardTitle, PageHeader } from '../../components/common';
+import { readStorage } from '../../services/savedProjects';
 import { useTheme, type ThemePreference } from '../../state/ThemeContext';
+import type { StorageInfo } from '../../types';
 
-type NotificationKey = 'simulation' | 'criticalRisk' | 'approval' | 'weeklyReport';
+/**
+ * Only settings that do something.
+ *
+ * This page used to offer notification rules, a retention period, an
+ * "immutable" audit log, export permissions and a classification level. None
+ * of them were wired to anything — the save button flipped a boolean — and
+ * several described the shared deployment that no longer exists. Promising
+ * governance an application does not perform is worse than not offering it.
+ */
 
-function ToggleRow({ label, description, checked, onChange }: { label: string; description: string; checked: boolean; onChange: () => void }) {
-  return (
-    <div className="pro-toggle-row">
-      <div><b>{label}</b><span>{description}</span></div>
-      <button className={`pro-switch ${checked ? 'on' : ''}`} type="button" role="switch" aria-checked={checked} onClick={onChange}><i /></button>
-    </div>
-  );
-}
+const themes: { value: ThemePreference; label: string; hint: string; icon: typeof Sun }[] = [
+  { value: 'light', label: 'Clair', hint: 'Fond blanc en permanence.', icon: Sun },
+  { value: 'dark', label: 'Sombre', hint: 'Fond sombre en permanence.', icon: Moon },
+  { value: 'system', label: 'Système', hint: 'Suit le réglage de Windows.', icon: Monitor },
+];
 
 export function SettingsPage() {
   const { theme, setTheme } = useTheme();
-  const [saved, setSaved] = useState(false);
-  const [notifications, setNotifications] = useState<Record<NotificationKey, boolean>>({ simulation: true, criticalRisk: true, approval: true, weeklyReport: false });
+  const [storage, setStorage] = useState<StorageInfo | null>(null);
+  const [storageError, setStorageError] = useState<string | null>(null);
 
-  const toggleNotification = (key: NotificationKey) => {
-    setNotifications((current) => ({ ...current, [key]: !current[key] }));
-    setSaved(false);
-  };
-
-  const saveSettings = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setSaved(true);
-  };
+  useEffect(() => {
+    let cancelled = false;
+    readStorage()
+      .then((info) => { if (!cancelled) setStorage(info); })
+      .catch((cause: unknown) => {
+        if (!cancelled) {
+          setStorageError(cause instanceof Error ? cause.message : 'Emplacement indisponible.');
+        }
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <>
-      <PageHeader title="Paramètres" subtitle="Préférences générales, gouvernance des données et règles de notification." />
-      <form className="pro-settings-layout" onSubmit={saveSettings} onChange={() => setSaved(false)}>
+      <PageHeader
+        title="Paramètres"
+        subtitle="Apparence de l’interface et emplacement des données de ce poste."
+      />
+
+      <div className="settings-layout">
         <Card className="pro-settings-card">
-          <CardTitle info={false}><span className="title-with-icon"><Globe2 />Préférences générales</span></CardTitle>
-          <div className="pro-form-grid">
-            <label>Fuseau horaire<select defaultValue="Africa/Casablanca"><option>Africa/Casablanca</option><option>Europe/Paris</option><option>UTC</option></select></label>
-            <label>Langue de l’interface<select defaultValue="fr"><option value="fr">Français</option><option value="en">English</option></select></label>
-            <label>Format des nombres<select defaultValue="fr-FR"><option value="fr-FR">1 234 567,89</option><option value="en-US">1,234,567.89</option></select></label>
-            <label>Thème<select value={theme} onChange={(event) => setTheme(event.target.value as ThemePreference)}><option value="system">Système</option><option value="light">Clair</option><option value="dark">Sombre</option></select></label>
+          <CardTitle info={false}><span className="title-with-icon"><Palette />Apparence</span></CardTitle>
+          <p className="pro-card-subtitle">Le choix est retenu sur ce poste et s’applique immédiatement.</p>
+          <div className="theme-choice" role="radiogroup" aria-label="Thème de l’interface">
+            {themes.map(({ value, label, hint, icon: Icon }) => (
+              <button
+                type="button"
+                role="radio"
+                aria-checked={theme === value}
+                className={theme === value ? 'is-active' : ''}
+                onClick={() => setTheme(value)}
+                key={value}
+              >
+                <Icon /><b>{label}</b><small>{hint}</small>
+              </button>
+            ))}
           </div>
         </Card>
 
         <Card className="pro-settings-card">
-          <CardTitle info={false}><span className="title-with-icon"><Bell />Notifications</span></CardTitle>
-          <div className="pro-toggle-list">
-            <ToggleRow label="Simulation terminée" description="Notifier l’initiateur et les validateurs." checked={notifications.simulation} onChange={() => toggleNotification('simulation')} />
-            <ToggleRow label="Risque critique créé ou réévalué" description="Alerte immédiate aux membres du comité des risques." checked={notifications.criticalRisk} onChange={() => toggleNotification('criticalRisk')} />
-            <ToggleRow label="Validation requise" description="Rappel après 24 heures sans décision." checked={notifications.approval} onChange={() => toggleNotification('approval')} />
-            <ToggleRow label="Synthèse hebdomadaire" description="Rapport consolidé chaque lundi à 08:00." checked={notifications.weeklyReport} onChange={() => toggleNotification('weeklyReport')} />
+          <CardTitle info={false}><span className="title-with-icon"><Database />Données locales</span></CardTitle>
+          <p className="pro-card-subtitle">
+            Registres et historique vivent dans un seul fichier, sur cette machine. C’est le
+            fichier à sauvegarder — rien ne circule sur le réseau.
+          </p>
+          {storageError !== null ? (
+            <p className="panel-placeholder">{storageError}</p>
+          ) : storage === null ? (
+            <p className="panel-placeholder">Lecture…</p>
+          ) : (
+            <>
+              <div className="storage-path">
+                <HardDrive />
+                <code>{storage.databasePath}</code>
+              </div>
+              <dl className="storage-counts">
+                <div><dt>Registres enregistrés</dt><dd>{storage.registers}</dd></div>
+                <div><dt>Simulations conservées</dt><dd>{storage.runs}</dd></div>
+              </dl>
+            </>
+          )}
+          <div className="pro-callout warning">
+            <ShieldAlert />
+            <div>
+              <b>Ce fichier n’est pas chiffré</b>
+              <span>
+                Toute personne ouvrant la session Windows de ce poste peut le lire. Un écran de
+                connexion n’y changerait rien : il protégerait l’interface, pas le fichier. Le
+                chiffrement de disque, type BitLocker, est ce qui protège réellement des
+                registres clients confidentiels.
+              </span>
+            </div>
           </div>
         </Card>
-
-        <Card className="pro-settings-card">
-          <CardTitle info={false}><span className="title-with-icon"><Database />Conservation et traçabilité</span></CardTitle>
-          <div className="pro-form-grid">
-            <label>Durée de conservation<select defaultValue="7"><option value="3">3 ans</option><option value="7">7 ans</option><option value="10">10 ans</option></select></label>
-            <label>Journal d’audit<select defaultValue="complete"><option value="complete">Complet et immuable</option><option value="standard">Standard</option></select></label>
-            <label>Exports autorisés<select defaultValue="managers"><option value="managers">Administrateurs et risk managers</option><option value="all">Tous les membres</option></select></label>
-            <label>Classification<select defaultValue="internal"><option value="internal">Interne confidentiel</option><option value="restricted">Restreint</option><option value="public">Public</option></select></label>
-          </div>
-        </Card>
-
-        <div className="pro-sticky-actions">
-          <span>Dernière modification par Pierre Dubois · 16/08/2026 à 17:21</span>
-          <div>{saved ? <StatusPill>Paramètres enregistrés</StatusPill> : null}<Button variant="primary" type="submit"><Save />Enregistrer les paramètres</Button></div>
-        </div>
-      </form>
+      </div>
     </>
   );
 }

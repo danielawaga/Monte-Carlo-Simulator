@@ -427,6 +427,21 @@ def save_run(payload: SaveRunPayload, connection: Connection) -> dict[str, objec
     return {"run": _stored_run_payload(stored)}
 
 
+@app.get("/api/storage")
+def storage(connection: Connection) -> dict[str, object]:
+    """Where this installation keeps its data, and how much of it there is.
+
+    The interface has no other way to tell someone which file holds their
+    registers — which is the file they need to back up, and the one only disk
+    encryption protects.
+    """
+    return {
+        "databasePath": str(database.database_path()),
+        "registers": projects.count_registers(connection),
+        "runs": projects.count_runs(connection),
+    }
+
+
 @app.get("/api/template")
 def template() -> FileResponse:
     if not TEMPLATE_PATH.exists():

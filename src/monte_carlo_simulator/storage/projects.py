@@ -209,3 +209,13 @@ def list_runs(
             (register_id, limit),
         ).fetchall()
     return [_run_from_row(row) for row in rows]
+
+
+def count_registers(connection: sqlite3.Connection) -> int:
+    """How many registers are stored, without reading their payloads."""
+    return int(connection.execute("SELECT COUNT(*) FROM registers").fetchone()[0])
+
+
+def count_runs(connection: sqlite3.Connection) -> int:
+    """How many runs are stored, without reading their results."""
+    return int(connection.execute("SELECT COUNT(*) FROM runs").fetchone()[0])
