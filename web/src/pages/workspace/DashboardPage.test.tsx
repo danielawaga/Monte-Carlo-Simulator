@@ -34,10 +34,16 @@ const RUN = {
   },
 } as unknown as SavedRun;
 
-function answer(registers: SavedRegister[], runs: SavedRun[]) {
+function answer(
+  registers: SavedRegister[],
+  runs: SavedRun[],
+  totals?: { registers: number; runs: number },
+) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
     const url = String(input);
-    const body = url.includes('/api/runs') ? { runs } : { registers };
+    const body = url.includes('/api/storage')
+      ? { databasePath: '/tmp/monte_carlo.sqlite3', ...(totals ?? { registers: registers.length, runs: runs.length }) }
+      : url.includes('/api/runs') ? { runs } : { registers };
     return Promise.resolve(new Response(JSON.stringify(body), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
@@ -88,6 +94,15 @@ describe('DashboardPage', () => {
     // des exécutions et dans la liste des registres.
     expect(screen.getAllByText('Extension usine')).toHaveLength(2);
     expect(screen.getByText(/2 postes · modifié le 02\/08\/2026/)).toBeVisible();
+  });
+
+  it('compte les exécutions sans se laisser plafonner par la liste', async () => {
+    // /api/runs plafonne à 50 pour l'affichage. Compter la liste rendue
+    // annoncerait « 50 » à un poste qui en conserve 137.
+    answer([REGISTER], [RUN], { registers: 1, runs: 137 });
+    renderDashboard();
+
+    expect(await screen.findByText('137')).toBeVisible();
   });
 
   it('signale une base illisible au lieu de faire semblant', async () => {

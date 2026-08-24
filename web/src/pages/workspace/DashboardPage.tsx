@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowRight, BarChart3, ClipboardList, Play } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Card, CardTitle, PageHeader } from '../../components/common';
-import { listRegisters, listRuns } from '../../services/savedProjects';
+import { listRegisters, listRuns, readStorage } from '../../services/savedProjects';
 import { formatAmount, numeric, percentile } from '../../services/simulationMetrics';
-import type { SavedRegister, SavedRun } from '../../types';
+import type { SavedRegister, SavedRun, StorageInfo } from '../../types';
 
 /**
  * Everything shown here comes from the registers and runs stored on this
@@ -89,15 +89,19 @@ function EmptyDashboard() {
 export function DashboardPage() {
   const [registers, setRegisters] = useState<SavedRegister[] | null>(null);
   const [runs, setRuns] = useState<SavedRun[]>([]);
+  const [totals, setTotals] = useState<StorageInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([listRegisters(), listRuns()])
-      .then(([savedRegisters, savedRuns]) => {
+    // The listings are capped for rendering; the totals come from a COUNT, so a
+    // desk with more than fifty saved runs is not told it has exactly fifty.
+    Promise.all([listRegisters(), listRuns(), readStorage()])
+      .then(([savedRegisters, savedRuns, storage]) => {
         if (cancelled) return;
         setRegisters(savedRegisters);
         setRuns(savedRuns);
+        setTotals(storage);
       })
       .catch((cause: unknown) => {
         if (!cancelled) {
@@ -134,8 +138,8 @@ export function DashboardPage() {
       {header}
 
       <div className="pro-context-bar">
-        <div><span>Registres enregistrés</span><b>{registers.length}</b></div>
-        <div><span>Simulations conservées</span><b>{runs.length}</b></div>
+        <div><span>Registres enregistrés</span><b>{totals?.registers ?? registers.length}</b></div>
+        <div><span>Simulations conservées</span><b>{totals?.runs ?? runs.length}</b></div>
         <div><span>Dernière exécution</span><b>{latest ? shortDate(latest.createdAt) : 'Aucune'}</b></div>
         <div><span>Emplacement</span><b>Ce poste uniquement</b></div>
       </div>
