@@ -6,8 +6,6 @@ import {
   Home,
   Monitor,
   Moon,
-  PanelLeftClose,
-  PanelLeftOpen,
   Settings,
   Sun,
   X,
@@ -15,8 +13,8 @@ import {
 import { NavLink } from 'react-router-dom';
 import { useTheme, type ThemePreference } from '../../state/ThemeContext';
 
-const Logo = ({ collapsed, onNavigate }: { collapsed: boolean; onNavigate: () => void }) => (
-  <NavLink className="brand" to="/" aria-label="RiskSim — Accueil" onClick={onNavigate}>
+const Logo = ({ onNavigate }: { onNavigate: () => void }) => (
+  <NavLink className="brand" to="/" aria-label="RiskSim — Monte Carlo" onClick={onNavigate}>
     <svg viewBox="0 0 48 42" aria-hidden="true">
       <path d="M3 35 15 21l9 8L43 5M3 23l12-15 10 10L42 1" />
       <circle cx="3" cy="35" r="2" />
@@ -45,29 +43,19 @@ const themes: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
 type SidebarProps = {
   collapsed: boolean;
   mobileOpen: boolean;
-  onToggle: () => void;
   onNavigate: () => void;
   onMobileClose: () => void;
 };
 
-export function Sidebar({ collapsed, mobileOpen, onToggle, onNavigate, onMobileClose }: SidebarProps) {
+export function Sidebar({ collapsed, mobileOpen, onNavigate, onMobileClose }: SidebarProps) {
   const { theme, setTheme } = useTheme();
 
   return (
     <aside className={`sidebar ${collapsed ? 'is-collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
       <div className="sidebar-brand-row">
-        <Logo collapsed={collapsed} onNavigate={onNavigate} />
+        <Logo onNavigate={onNavigate} />
         <button className="sidebar-mobile-close" type="button" onClick={onMobileClose} aria-label="Fermer le menu principal"><X /></button>
       </div>
-      <button
-        type="button"
-        className="sidebar-toggle"
-        onClick={onToggle}
-        aria-label={collapsed ? 'Déployer le panneau latéral' : 'Réduire le panneau latéral'}
-        title={collapsed ? 'Déployer le panneau latéral' : 'Réduire le panneau latéral'}
-      >
-        {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
-      </button>
       <nav aria-label="Navigation principale">
         {navigation.map(({ to, label, icon: Icon, ...item }) => (
           <NavLink className="nav-main" to={to} end={'end' in item ? item.end : undefined} key={to} title={collapsed ? label : undefined} onClick={onNavigate}>

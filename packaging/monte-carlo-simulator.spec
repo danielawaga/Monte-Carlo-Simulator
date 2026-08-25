@@ -59,10 +59,9 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    # A console window is kept on purpose: it is where the address to share with
-    # colleagues is printed, and where a startup failure stays readable instead
-    # of the executable vanishing silently.
-    console=True,
+    # The consultant starts a desktop-style application: the local server stays
+    # invisible and the browser opens only once its health endpoint answers.
+    console=False,
     disable_windowed_traceback=False,
     target_arch=None,
     codesign_identity=None,

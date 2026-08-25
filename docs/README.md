@@ -19,7 +19,8 @@ Documentation de fond, maintenue à jour avec le moteur.
 
 | Document | Contenu |
 | --- | --- |
-| [`architecture.md`](reference/architecture.md) | les sept couches et leurs responsabilités |
+| [`project_overview.md`](reference/project_overview.md) | vue d'ensemble fonctionnelle, parcours utilisateur, résultats, exécution et limites |
+| [`architecture.md`](reference/architecture.md) | architecture technique détaillée : React, API, moteur, Excel, SQLite, sécurité et packaging |
 | [`methodology.md`](reference/methodology.md) | choix techniques et invariants du moteur |
 | [`methodology_note.md`](reference/methodology_note.md) | même méthode, sans prérequis mathématique |
 | [`registre_synthetique_batiment.md`](reference/registre_synthetique_batiment.md) | cas d'étude documenté servant de support de validation |
