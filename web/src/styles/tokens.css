@@ -73,15 +73,23 @@
   /* Accent ---------------------------------------------------------------- */
   --accent: #f0500f;
   --accent-hover: #d64509;
+  --accent-strong: #b93607;
   --accent-text: #c4400a;
   --accent-soft: #fff1e9;
+  --accent-selected: #ffe4d5;
   --accent-line: #f9b795;
+  --accent-tint: rgba(240, 80, 15, .08);
+  --accent-tint-strong: rgba(240, 80, 15, .16);
 
   /* Semantics ------------------------------------------------------------- */
   --blue: #1668d6;
   --blue-soft: #eaf2ff;
   --green: #10783c;
   --green-soft: #e8f7ee;
+  --section-header-bg: #475569;
+  --section-header-border: #708196;
+  --section-header-text: #f8fafc;
+  --section-header-icon: #c6d6e5;
   --red: #c02a37;
   --red-soft: #fdedee;
   --amber: #9a5b06;
@@ -117,16 +125,24 @@ html[data-theme="dark"] {
   --border-strong: #3a4454;
   --track: #262e3b;
 
-  --accent: #ff6b2c;
-  --accent-hover: #ff8149;
-  --accent-text: #ff8b57;
-  --accent-soft: #2f1b11;
-  --accent-line: #7a3d1d;
+  --accent: #fb923c;
+  --accent-hover: #f97316;
+  --accent-strong: #ea580c;
+  --accent-text: #fb923c;
+  --accent-soft: #3a2418;
+  --accent-selected: #4a2a18;
+  --accent-line: #fb923c;
+  --accent-tint: rgba(251, 146, 60, .12);
+  --accent-tint-strong: rgba(251, 146, 60, .22);
 
   --blue: #6ba6ff;
   --blue-soft: #16243c;
   --green: #59cd8b;
   --green-soft: #123024;
+  --section-header-bg: #253b50;
+  --section-header-border: #4f6f8c;
+  --section-header-text: #f0f5fa;
+  --section-header-icon: #9db7cf;
   --red: #ff8e99;
   --red-soft: #2f171b;
   --amber: #e0a955;
@@ -136,9 +152,9 @@ html[data-theme="dark"] {
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, .4), 0 1px 2px rgba(0, 0, 0, .28);
   --shadow-md: 0 4px 14px rgba(0, 0, 0, .46), 0 1px 3px rgba(0, 0, 0, .3);
   --shadow-lg: 0 14px 36px rgba(0, 0, 0, .56), 0 3px 9px rgba(0, 0, 0, .34);
-  --shadow-accent: 0 4px 12px rgba(255, 107, 44, .24);
+  --shadow-accent: 0 4px 12px rgba(251, 146, 60, .22);
 
   --backdrop:
-    radial-gradient(1100px 620px at 12% -8%, rgba(255, 107, 44, .07), transparent 62%),
+    radial-gradient(1100px 620px at 12% -8%, rgba(251, 146, 60, .07), transparent 62%),
     radial-gradient(950px 560px at 96% 4%, rgba(107, 166, 255, .06), transparent 60%);
 }

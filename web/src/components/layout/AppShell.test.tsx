@@ -19,6 +19,8 @@ describe('AppShell', () => {
     const user = userEvent.setup();
     const { container } = renderApp();
 
+    expect(screen.getByRole('link', { name: 'RiskSim — Monte Carlo' })).toBeVisible();
+
     await user.click(screen.getByRole('button', { name: 'Thème Sombre' }));
     await waitFor(() => expect(document.documentElement.dataset.theme).toBe('dark'));
     expect(JSON.parse(String(window.localStorage.getItem('risksim.theme.v1')))).toEqual({

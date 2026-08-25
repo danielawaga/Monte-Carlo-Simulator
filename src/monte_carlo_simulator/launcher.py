@@ -18,7 +18,10 @@ import logging
 import os
 import socket
 import threading
+import time
 import webbrowser
+from urllib.error import URLError
+from urllib.request import urlopen
 
 import uvicorn
 
@@ -27,6 +30,9 @@ from monte_carlo_simulator.resources import frontend_directory, is_frozen
 DEFAULT_PORT = 8000
 HOST = "127.0.0.1"
 PORT_SEARCH_ATTEMPTS = 20
+SERVER_READY_TIMEOUT_SECONDS = 30.0
+SERVER_READY_POLL_INTERVAL_SECONDS = 0.15
+SERVER_READY_REQUEST_TIMEOUT_SECONDS = 1.0
 
 logger = logging.getLogger(__name__)
 
@@ -55,9 +61,49 @@ def choose_port(host: str, preferred: int = DEFAULT_PORT) -> int:
     )
 
 
-def _open_browser_later(url: str, delay: float = 1.5) -> None:
-    """Open the browser once the server has had time to start listening."""
-    threading.Timer(delay, lambda: webbrowser.open(url)).start()
+def server_is_ready(url: str) -> bool:
+    """Return whether the packaged API is already able to answer requests."""
+    try:
+        with urlopen(f"{url}/api/health", timeout=SERVER_READY_REQUEST_TIMEOUT_SECONDS) as response:
+            return int(response.status) == 200
+    except (OSError, URLError):
+        return False
+
+
+def _wait_for_server_and_open_browser(
+    url: str,
+    *,
+    timeout: float = SERVER_READY_TIMEOUT_SECONDS,
+    poll_interval: float = SERVER_READY_POLL_INTERVAL_SECONDS,
+) -> None:
+    """Open the browser only after the health endpoint actually answers."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if server_is_ready(url):
+            webbrowser.open(url)
+            return
+        time.sleep(poll_interval)
+    logger.error("Le serveur local n'a pas répondu dans le délai prévu : %s", url)
+
+
+def _open_browser_when_ready(url: str) -> threading.Thread:
+    """Wait for Uvicorn in the background without delaying its startup."""
+    thread = threading.Thread(
+        target=_wait_for_server_and_open_browser,
+        args=(url,),
+        name="risksim-browser-opener",
+        daemon=True,
+    )
+    thread.start()
+    return thread
+
+
+def _configure_logging(frozen: bool) -> None:
+    """Keep source logs useful without writing to an absent frozen console."""
+    if frozen:
+        logging.basicConfig(level=logging.INFO, handlers=[logging.NullHandler()])
+        return
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -78,7 +124,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> None:
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    frozen = is_frozen()
+    _configure_logging(frozen)
     options = build_parser().parse_args(argv)
     port = choose_port(HOST, options.port)
 
@@ -92,7 +139,7 @@ def main(argv: list[str] | None = None) -> None:
     logger.info("Simulateur Monte-Carlo démarré sur %s", url)
     logger.info("L'accès est limité à cette machine ; rien ne circule sur le réseau.")
     if not options.no_browser:
-        _open_browser_later(url)
+        _open_browser_when_ready(url)
 
     uvicorn.run(
         "monte_carlo_simulator.web_api:app",
@@ -101,8 +148,10 @@ def main(argv: list[str] | None = None) -> None:
         # Reload rewrites the import machinery, which a frozen build cannot do.
         reload=False,
         log_level="info",
-        # A packaged build has no colour-capable terminal behind it.
-        use_colors=not is_frozen(),
+        # The frozen build deliberately has no console to receive access logs.
+        log_config=None if frozen else uvicorn.config.LOGGING_CONFIG,
+        access_log=not frozen,
+        use_colors=not frozen,
     )
 
 

@@ -65,6 +65,47 @@ class TestPortSelection:
             launcher.choose_port("127.0.0.1", 8000)
 
 
+class TestBrowserOpening:
+    def test_the_browser_opens_only_after_the_health_endpoint_answers(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        answers = iter([False, False, True])
+        probes: list[str] = []
+        sleeps: list[float] = []
+        opened: list[str] = []
+
+        def probe(url: str) -> bool:
+            probes.append(url)
+            return next(answers)
+
+        monkeypatch.setattr(launcher, "server_is_ready", probe)
+        monkeypatch.setattr(launcher.time, "sleep", sleeps.append)
+        monkeypatch.setattr(launcher.webbrowser, "open", opened.append)
+
+        launcher._wait_for_server_and_open_browser(
+            "http://127.0.0.1:8000", timeout=1.0, poll_interval=0.05
+        )
+
+        assert probes == ["http://127.0.0.1:8000"] * 3
+        assert sleeps == [0.05, 0.05]
+        assert opened == ["http://127.0.0.1:8000"]
+
+    def test_a_failed_probe_does_not_open_an_error_page(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        clock = iter([0.0, 0.5, 1.1])
+        opened: list[str] = []
+
+        monkeypatch.setattr(launcher, "server_is_ready", lambda _url: False)
+        monkeypatch.setattr(launcher.time, "monotonic", lambda: next(clock))
+        monkeypatch.setattr(launcher.time, "sleep", lambda _delay: None)
+        monkeypatch.setattr(launcher.webbrowser, "open", opened.append)
+
+        launcher._wait_for_server_and_open_browser("http://127.0.0.1:8000", timeout=1.0)
+
+        assert opened == []
+
+
 class TestCommandLine:
     def test_the_listening_address_cannot_be_changed(self) -> None:
         """The application has no authentication, so a non-loopback bind would

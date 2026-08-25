@@ -115,18 +115,24 @@ the blank workbook into one file. The `Executable` workflow builds it on Windows
 `v*` tag — smoke-tests that the binary actually serves `/api/health` and the interface, then
 publishes it as an artifact.
 
+The current prebuilt Windows version is available at
+[`dist/MonteCarloSimulator.exe`](dist/MonteCarloSimulator.exe) through Git LFS. Download or copy the
+file to the target computer, then double-click it: no terminal window is shown and the default
+browser opens automatically once the local engine is ready. The first start can take a few seconds
+while the single-file package extracts its components.
+
 ```bash
 cd web && npm run build && cd ..
 pip install -e ".[web,packaging]"
 pyinstaller packaging/monte-carlo-simulator.spec
 ```
 
-The console window is kept on purpose: it prints the address, and a startup failure stays readable
-instead of the window vanishing.
+The packaged application runs without a console window. It probes `/api/health` in the background
+and opens the browser only once the local API is ready, so users do not see a transient browser
+connection error during startup.
 
-**Verified on Linux, not on Windows.** The spec was exercised end to end here — building the binary,
-launching it with no Python or Node available to it, and driving the whole path in a browser. The
-Windows build itself runs in CI and has not been executed by the author.
+The Windows executable is smoke-tested by launching the binary with no Python or Node process,
+checking the API, the deep React routes and an end-to-end simulation before delivery.
 
 ### Saved registers and run history
 
@@ -303,6 +309,7 @@ Start from the [documentation index](docs/README.md).
 - [30-minute user guide](docs/guides/user_guide_30min.md)
 - [Detailed Excel/schema guide](docs/guides/user_guide.md)
 - [Technical handover](docs/guides/handover.md)
+- [Project overview](docs/reference/project_overview.md)
 - [Consultant-facing methodology note](docs/reference/methodology_note.md)
 - [Technical methodology](docs/reference/methodology.md)
 - [Architecture](docs/reference/architecture.md)

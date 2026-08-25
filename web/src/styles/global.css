@@ -47,18 +47,6 @@ table, .stat strong, .metric strong, .kpi-grid strong, td, th,
   overflow-y: auto;
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0 10px 34px;
-  color: inherit;
-  text-decoration: none;
-}
-.brand svg { width: 42px; height: 38px; fill: none; stroke: var(--accent); stroke-width: 2; }
-.brand strong { font-size: var(--fs-lg); display: block; letter-spacing: -.2px; }
-.brand span { display: block; color: var(--text-subtle); margin-top: 3px; font-size: var(--fs-sm); }
-
 .sidebar nav { display: flex; flex-direction: column; gap: 3px; }
 
 .sidebar a, .nav-parent {
@@ -186,7 +174,7 @@ table, .stat strong, .metric strong, .kpi-grid strong, td, th,
 
 .button.primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--text-inverse);
   border-color: var(--accent);
   font-size: var(--fs-base);
   box-shadow: var(--shadow-accent);

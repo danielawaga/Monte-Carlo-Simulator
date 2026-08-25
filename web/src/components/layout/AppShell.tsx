@@ -1,4 +1,4 @@
-import { Menu } from 'lucide-react';
+import { Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from '../navigation/Sidebar';
@@ -46,7 +46,6 @@ export function AppShell() {
       <Sidebar
         collapsed={collapsed}
         mobileOpen={mobileOpen}
-        onToggle={toggleCollapsed}
         onNavigate={() => setMobileOpen(false)}
         onMobileClose={() => setMobileOpen(false)}
       />
@@ -56,7 +55,18 @@ export function AppShell() {
         aria-label="Fermer le menu en cliquant hors du panneau"
         onClick={() => setMobileOpen(false)}
       />
-      <main className="main"><Outlet /></main>
+      <main className="main">
+        <button
+          type="button"
+          className="main-sidebar-toggle"
+          onClick={toggleCollapsed}
+          aria-label={collapsed ? 'Déployer le panneau latéral' : 'Réduire le panneau latéral'}
+          title={collapsed ? 'Déployer le panneau latéral' : 'Réduire le panneau latéral'}
+        >
+          {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+        </button>
+        <Outlet />
+      </main>
     </div>
   );
 }
