@@ -1,4 +1,7 @@
-# Notebooks
+# Carnets d’expérimentation
 
-This folder contains educational notebooks for quick experiments.
-Use package functions from `src/monte_carlo_simulator` rather than duplicating engine logic.
+Ce dossier contient des carnets pédagogiques destinés à des essais rapides et à
+l’illustration de la méthode. Ils ne constituent pas l’interface de production.
+
+Utiliser les fonctions de `src/monte_carlo_simulator` plutôt que de dupliquer la
+logique du moteur dans un carnet.

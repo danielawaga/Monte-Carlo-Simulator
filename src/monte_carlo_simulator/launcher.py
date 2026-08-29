@@ -199,9 +199,7 @@ def _configure_logging() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
 
-def _listen_for_shutdown_commands(
-    server: ShutdownServer, stream: TextIO | None = None
-) -> None:
+def _listen_for_shutdown_commands(server: ShutdownServer, stream: TextIO | None = None) -> None:
     """Translate simple terminal commands into a graceful Uvicorn shutdown."""
     source = stream if stream is not None else sys.stdin
     while not bool(getattr(server, "should_exit", False)):

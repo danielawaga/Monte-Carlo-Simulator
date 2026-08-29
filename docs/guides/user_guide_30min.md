@@ -2,7 +2,19 @@
 
 Ce guide vise un consultant qui veut exécuter une simulation sans écrire de code. Le flux normal est : **registre Excel → contrôles → simulation → lecture décisionnelle → export**.
 
-## 0–5 min — installer l'application
+## 0–5 min — lancer l'application
+
+### Version portable Windows recommandée
+
+La version portable ne demande aucun prérequis. Télécharger
+`RiskSim-Windows-x64-Portable.zip` depuis le dépôt GitHub, le décompresser entièrement, puis lancer
+`RiskSim.exe` dans le dossier `RiskSim-Portable`. Le terminal reste ouvert pour afficher le démarrage
+et les éventuelles erreurs ; le navigateur s'ouvre automatiquement lorsque le moteur est prêt.
+
+Pour arrêter l'application, utiliser `Ctrl+C`, saisir `exit`, `quit` ou `q` dans le terminal, ou
+cliquer sur **Quitter RiskSim** dans l'interface.
+
+### Lancement depuis les sources, pour le développement
 
 Prérequis : Python 3.11 ou plus récent, Node.js 20 ou plus récent, et Git.
 
@@ -39,8 +51,7 @@ npm install
 npm run dev
 ```
 
-Ouvrir l'adresse affichée par Vite dans le terminal (par défaut `http://localhost:5173`). Si le
-déploiement est protégé par une clé d'accès partagée, l'interface la demande avant tout affichage.
+Ouvrir l'adresse affichée par Vite dans le terminal (par défaut `http://localhost:5173`).
 
 ## 5–10 min — partir du bon fichier Excel
 

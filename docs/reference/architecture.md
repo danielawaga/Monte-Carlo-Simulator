@@ -494,18 +494,19 @@ autorisation, TLS, gestion des secrets, journalisation et politique de conservat
 
 ## 10. Construction de l'exécutable
 
-`packaging/monte-carlo-simulator.spec` utilise PyInstaller en mode fichier unique. Il embarque :
+`packaging/monte-carlo-simulator-portable.spec` utilise PyInstaller en mode dossier portable. Il
+embarque :
 
 - l'interpréteur et les dépendances Python ;
 - les sous-modules Uvicorn chargés dynamiquement ;
 - le build statique `web/dist` ;
 - les modèles présents dans `data/templates`.
 
-Les backends graphiques interactifs Matplotlib et les boîtes à outils GUI inutiles sont exclus.
-L'exécutable utilise le sous-système graphique Windows (`console=False`) : aucun terminal n'apparaît
-au lancement. La journalisation console d'Uvicorn est également désactivée dans la version figée.
-Le navigateur n'est ouvert qu'après une réponse positive de `/api/health`, afin d'éviter d'afficher
-une erreur de connexion pendant l'extraction et l'initialisation du fichier unique PyInstaller.
+Les backends graphiques interactifs Matplotlib et les boîtes à outils GUI inutiles sont exclus. La
+distribution contient un unique `RiskSim.exe` et un sous-dossier `_internal` qui regroupe
+l'interpréteur et les bibliothèques. Le terminal reste volontairement visible : il affiche le
+démarrage, les requêtes et les erreurs éventuelles, et permet un arrêt par `Ctrl+C`, `exit`, `quit`
+ou `q`. Le navigateur n'est ouvert qu'après une réponse positive de `/api/health`.
 
 La chaîne de construction correcte est :
 
@@ -513,14 +514,15 @@ La chaîne de construction correcte est :
 npm ci / npm run build
         -> web/dist
 installation Python [web, packaging]
-        -> PyInstaller + monte-carlo-simulator.spec
-        -> dist/MonteCarloSimulator.exe
-        -> smoke test /api/health et routes React
+        -> PyInstaller + monte-carlo-simulator-portable.spec
+        -> dist/RiskSim-Portable/RiskSim.exe + _internal
+        -> ZIP RiskSim-Windows-x64-Portable.zip
+        -> smoke test /api/health, interface et simulation
 ```
 
-Le workflow `.github/workflows/executable.yml`, lancé manuellement ou par tag `v*`, construit sous
-Windows, démarre le binaire sur un répertoire de données temporaire, teste `/api/health`, `/`,
-`/risques` et `/resultats`, puis publie l'exécutable comme artefact GitHub Actions.
+Le workflow `.github/workflows/executable.yml`, lancé manuellement ou par tag `v*`, conserve le
+profil historique de construction. La distribution portable livrée est construite avec la
+spécification dédiée, puis vérifiée par démarrage, simulation, export, arrêt et extraction du ZIP.
 
 ## 11. Qualité et stratégie de test
 

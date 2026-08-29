@@ -1,70 +1,74 @@
-# Monte-Carlo-Simulator
+# RiskSim — Monte Carlo Simulator
 
-Python application for probabilistic project cost and schedule risk analysis. The project turns an Excel risk register into a simulated total distribution, decision percentiles, baseline reserves, correlation diagnostics, convergence evidence and sensitivity outputs.
+RiskSim est une application locale d'analyse probabiliste des risques de **coût** et de **durée**
+des projets. À partir d'un registre de risques Excel ou créé dans l'interface, elle exécute une
+simulation Monte-Carlo, calcule des indicateurs de décision et produit des exports exploitables.
 
-## Current status — S6 per-desk application
+Le navigateur affiche l'interface tandis que le moteur Python calcule localement. Les données ne
+sont pas transmises sur le réseau.
 
-The simulator is installed on each desk and listens on the loopback interface only: nothing travels
-over the network. The repository combines two layers:
+## Fonctionnalités
 
-- a tested Python Monte Carlo engine, application service, HTTP API and local store;
-- a React + TypeScript + Vite interface under `web/`, the single operational interface, structured around Risk register, Configuration, Results and Scenario Comparison views.
+- création ou import d'un registre de risques Excel ;
+- distributions triangulaire, PERT, uniforme, normale, lognormale et événementielle ;
+- corrélations optionnelles entre postes par copule gaussienne ;
+- simulations vectorisées et reproductibles grâce à la graine aléatoire ;
+- P50, P75, P80, P90, P95, dépassement de référence et réserve ;
+- histogramme, S-curve, sensibilité de Spearman et diagnostic de convergence ;
+- sauvegarde locale des registres, scénarios et simulations ;
+- export Excel et dossier ZIP des artefacts de résultats.
 
-The Streamlit interface that carried the S4/S5 workflow has been removed: React now covers the whole end-to-end path — import, edit, reset to the imported assumptions, validate, simulate, analyse and export — and adds scenario comparison, which Streamlit never had. The probabilistic logic stays in Python.
+## Version portable Windows
 
-### Available features
+La version prête à l'emploi est disponible dans
+[`output/packages/RiskSim-Windows-x64-Portable.zip`](output/packages/RiskSim-Windows-x64-Portable.zip).
+Elle embarque Python, l'API locale, l'interface React et ses dépendances : aucune installation
+préalable de Python, Node.js ou package n'est requise.
 
-- vectorized and reproducible Monte Carlo simulation with NumPy;
-- six distributions: triangular, Beta-PERT, uniform, normal, arithmetic-parameterized log-normal and Bernoulli × impact event risk;
-- versioned Excel schema `1.0` with aggregated validation errors;
-- optional correlations through a Gaussian copula and Cholesky decomposition;
-- strict matrix policy: invalid correlation matrices are rejected and never repaired silently;
-- histogram and empirical S-curve;
-- P50/P80/P90/P95 and configurable percentiles;
-- baseline exceedance probability and non-negative percentile reserves;
-- Spearman sensitivity and tornado chart;
-- cumulative percentile convergence diagnostics;
-- interactive charts with exact values on hover, rendered as SVG by the React interface;
-- editable assumptions after Excel import, with a one-click reset back to the imported register;
-- reset/re-run workflow for lightweight what-if analysis;
-- React/TypeScript/Vite frontend with a risk-register builder, unified Simulation/Scenarios workspace and Results screen;
-- reproducible synthetic acceptance case and consultant-validation protocol;
-- registers and completed runs saved in a local database, with the assumptions behind each figure;
-- user, methodology, handover and restitution documentation.
+1. Depuis GitHub, télécharger le fichier ZIP à l’aide du bouton de téléchargement du fichier.
+2. Décompresser entièrement l'archive dans un dossier local.
+3. Ouvrir `RiskSim-Portable` et lancer `RiskSim.exe`.
+4. Laisser le terminal ouvert : il indique le démarrage et les éventuelles erreurs.
+5. Le navigateur s'ouvre automatiquement lorsque l'application est prête.
 
-## Installation
+Pour arrêter l'application, utiliser `Ctrl+C`, saisir `exit`, `quit` ou `q` dans le terminal, ou
+cliquer sur « Quitter RiskSim » dans l'interface. Attendre le message de fin avant de déplacer ou
+supprimer le dossier.
 
-Python 3.11+ is required.
+L'archive est stockée avec Git LFS. Pour la récupérer au moyen d'un clone local, installer Git LFS
+puis exécuter :
 
-### Python environment
+```bash
+git clone --branch portable-risksim-windows https://github.com/danielawaga/Monte-Carlo-Simulator.git
+cd Monte-Carlo-Simulator
+git lfs pull
+```
+
+Sans Git LFS, Git ne récupère qu'un fichier de référence au lieu de l'archive complète.
+
+## Développement local
+
+### Préparer Python
+
+Python 3.11 ou plus récent est requis.
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate  # Windows PowerShell: .venv\Scripts\Activate.ps1
+# PowerShell : .venv\Scripts\Activate.ps1
+# Git Bash/Linux/macOS : source .venv/bin/activate
 python -m pip install --upgrade pip
-pip install -e ".[dev,web]"
+pip install -e ".[dev,web,packaging]"
 ```
 
-## React / TypeScript interface — the operational workflow
+### Lancer l'interface React
 
-The `web/` directory contains the frontend built with React, TypeScript and Vite. It is the only interface: there is no second UI to keep in sync.
-
-Main routes:
-
-- `/risques` — project, risk items, distributions, correlations, validation and Excel export;
-- `/configuration` — simulation preparation;
-- `/resultats` — results analysis;
-- `/comparaison` — detailed comparison of a frozen reference and the current run, linked from Results;
-- `/scenarios` — compatibility redirect to the Scenarios tab in `/configuration`.
-
-Install the Python web dependencies and start the API from the repository root:
+Dans un premier terminal, démarrer l'API :
 
 ```bash
-pip install -e ".[web]"
-uvicorn monte_carlo_simulator.web_api:app --reload --port 8000
+python -m uvicorn monte_carlo_simulator.web_api:app --reload --port 8000
 ```
 
-In a second terminal, start the frontend:
+Dans un second terminal :
 
 ```bash
 cd web
@@ -72,275 +76,108 @@ npm install
 npm run dev
 ```
 
-Production build:
+Ouvrir ensuite l'adresse indiquée par Vite, généralement `http://localhost:5173`.
 
-```bash
-npm run build
-```
-
-The `/risques` route builds or imports a schema-1.0 register, validates it through the Python engine and exports a compatible `.xlsx`, including an optional correlation matrix. `/configuration` reuses that shared register, groups execution standards and scenario documentation on one screen, and sends the draft directly to the API. `/resultats` displays the resulting indicators, histogram, S-curve and sensitivity ranking. The API delegates all probabilistic rules to `run_simulation_from_excel`; React remains responsible for editing, presentation and local scenario snapshots. Secondary workspace views still use demonstration data.
-
-## Per-desk installation
-
-Each desk runs its own copy. The launcher binds to `127.0.0.1` by default, so **nothing travels over
-the network**: no password, no data, nothing to intercept. That is a deliberate reversal of an
-earlier design — a single shared instance on the company network — which was dropped because
-protecting it properly needed a TLS certificate that could not be installed on locked-down
-workstations. Removing the network removes the problem rather than papering over it.
-
-Colleagues exchange work the way they always did: through the `.xlsx` import and export.
-
-### Launching it
-
-Once the interface is built (`cd web && npm run build`), the API serves it from the same process, so
-there is a single thing to start:
-
-```bash
-monte-carlo-simulator          # picks a free port, opens the browser
-```
-
-The launcher takes the first free port at or after 8000, so a second launch does not fail with a
-stack trace on a machine nobody is watching.
-
-**The listening address is fixed to `127.0.0.1` and cannot be changed from the command line.** The
-application has no authentication — that went with the shared deployment — so any other bind address
-would let every device on the subnet list, overwrite and delete the saved registers. TLS would not
-make that safe: it encrypts the connection, it does not decide who may use it. Reaching the tool from
-another machine would need an authentication layer back, which is a deliberate change and not a flag.
-
-### Version portable Windows
-
-La version prête à l’emploi est disponible dans
-[`output/packages/RiskSim-Windows-x64-Portable.zip`](output/packages/RiskSim-Windows-x64-Portable.zip).
-Elle comprend le moteur Python, l’API locale, l’interface React et ses dépendances : aucune
-installation de Python, Node.js ou package supplémentaire n’est nécessaire sur le poste de test.
-
-Depuis GitHub, ouvrir ce fichier puis choisir **Download raw file**, décompresser l’archive et lancer
-`RiskSim.exe`. Le terminal affiche le démarrage et les erreurs éventuelles ; le navigateur s’ouvre
-une fois l’application prête. Pour arrêter RiskSim, utiliser `Ctrl+C`, `exit`, `quit`, `q` ou le
-bouton « Quitter RiskSim » de l’interface.
-
-L’archive est stockée avec Git LFS. Pour la récupérer au moyen d’un clone local, installer Git LFS
-puis exécuter `git lfs pull` dans le dépôt cloné. Sans Git LFS, Git ne récupère qu’un petit fichier
-de référence, et non l’archive complète.
-
-La construction portable est décrite dans `packaging/monte-carlo-simulator-portable.spec` et validée
-par un démarrage réel, une simulation et un export depuis un dossier ZIP nouvellement extrait.
-
-```bash
-cd web && npm run build && cd ..
-pip install -e ".[web,packaging]"
-pyinstaller packaging/monte-carlo-simulator.spec
-```
-
-The packaged application runs without a console window. It probes `/api/health` in the background
-and opens the browser only once the local API is ready, so users do not see a transient browser
-connection error during startup.
-
-The Windows executable is smoke-tested by launching the binary with no Python or Node process,
-checking the API, the deep React routes and an end-to-end simulation before delivery.
-
-### Saved registers and run history
-
-Registers and completed runs live in a local SQLite file rather than in `localStorage`, which
-vanishes with the browsing data and cannot be backed up. A fifth tab of `/risques` — **Enregistrés**
-— lists them, saves the current draft and reopens one. Keeping a completed simulation is one button
-on the Results screen; the run records its assumptions and the register it came from, which is what
-lets a reserve figure sent to a client be traced back.
-
-Deleting a register detaches its runs rather than erasing them: a decision record that can quietly
-disappear is not a decision record.
-
-The database lives in a per-machine data directory — `%LOCALAPPDATA%\MonteCarloSimulator` on Windows,
-`~/.local/share/MonteCarloSimulator` elsewhere — and never inside the application tree, so a packaged
-executable can unpack itself read-only. Override it with `MCS_DATA_DIR`. **That one file is the whole
-state of the installation: back it up and you have backed up everything.**
-
-An installation created by either earlier version upgrades in place: the accounts, the password
-hashes and the session tokens are dropped — including from a version-1 database, which held accounts
-and no registers at all — while the saved registers and their run history are kept.
-
-### What this does not protect
-
-The database sits on the disk, readable by anyone with the machine's session. There is no login
-screen, and adding one would not change that — it would guard the interface, not the file. What
-actually protects it is full-disk encryption such as BitLocker.
-
-## CLI
-
-```bash
-python -m monte_carlo_simulator.cli \
-  --input data/templates/risk_register_template.xlsx \
-  --simulations 10000 \
-  --seed 42 \
-  --output-dir data/output
-```
-
-Without `--input`, the historical fictitious demonstration remains available:
-
-```bash
-python -m monte_carlo_simulator.cli
-```
-
-## Excel risk register
-
-The public fictitious template is [`data/templates/risk_register_template.xlsx`](data/templates/risk_register_template.xlsx).
-
-Required sheets:
-
-- `metadata` — schema version, project name, `cost`/`duration`, common unit and optional baseline;
-- `risk_register` — one active cost/duration item or event risk per row;
-- `instructions` — embedded schema guidance.
-
-Optional sheet:
-
-- `correlations` — square matrix aligned by active item names.
-
-Supported canonical distributions and required parameters:
-
-| Distribution | Required parameters |
-| --- | --- |
-| `triangular` | `minimum`, `most_likely`, `maximum` |
-| `pert` | `minimum`, `most_likely`, `maximum`; optional `lambda_shape` |
-| `uniform` | `minimum`, `maximum` |
-| `normal` | `mean`, `standard_deviation` |
-| `lognormal` | arithmetic `mean`, arithmetic `standard_deviation` |
-| `event` | `probability`, `impact` |
-
-The baseline is contextual information only. It is never added implicitly to the simulated total.
-
-## Interactive decision views
-
-### Distribution
-
-The histogram exposes the simulated intervals and counts on hover and displays the selected percentile markers.
-
-### Empirical S-curve
-
-The cumulative curve exposes cost and cumulative probability on hover, making it possible to read both:
-
-- the probability of remaining below a given budget;
-- the budget associated with a chosen confidence level.
-
-### Sensitivity
-
-Spearman rank sensitivity identifies the assumptions with the strongest monotonic relationship to the simulated total and feeds the tornado view.
-
-## Decision artifacts
-
-A standard Excel run produces:
-
-- `simulation_summary.csv`;
-- `simulation_histogram.png`;
-- `simulation_s_curve.png`;
-- `percentile_decision_table.csv`;
-- `convergence_diagnostics.csv`;
-- `sensitivity_summary.csv`;
-- `sensitivity_tornado.png`.
-
-If a baseline exists, the workflow adds `baseline_comparison.csv`. If correlations are supplied, it adds `correlation_diagnostics.csv`.
-
-## Reproducible validation path
-
-Generate and execute the synthetic correlated acceptance case with:
-
-```bash
-python -m scripts.run_s3_acceptance_case
-```
-
-Outputs are written under `data/output/s3_acceptance/`. This case validates the software path and numerical invariants; it does not validate the credibility of a real client's assumptions.
-
-For field validation, use:
-
-- [`docs/archive/consultant_validation_workshop.md`](docs/archive/consultant_validation_workshop.md);
-- [`data/templates/consultant_validation_log.csv`](data/templates/consultant_validation_log.csv).
-
-## Quality
-
-```bash
-ruff check .
-ruff format --check .
-pytest -v
-pytest --cov=monte_carlo_simulator --cov-report=term-missing --cov-fail-under=85
-mypy src/monte_carlo_simulator
-```
-
-Frontend build:
+### Construire l'interface locale
 
 ```bash
 cd web
-npm install
+npm run build
+cd ..
+python -m monte_carlo_simulator.launcher
+```
+
+Le lanceur sert l'interface construite depuis `127.0.0.1` et ouvre le navigateur lorsque l'API
+répond. L'adresse d'écoute est volontairement limitée à la machine locale.
+
+## Parcours utilisateur
+
+1. Dans **Registre de risques**, créer un projet ou importer un fichier Excel.
+2. Renseigner les postes, leurs distributions et, si nécessaire, la matrice de corrélation.
+3. Contrôler le registre dans l'étape **Validation**.
+4. Dans **Simulation**, choisir le nombre de tirages, la graine, les niveaux de confiance et le
+   niveau de décision.
+5. Lancer le calcul, puis consulter les onglets **Synthèse**, **Distribution**, **Sensibilité** et
+   **Robustesse** des résultats.
+6. Exporter le classeur de résultats ou le dossier ZIP des graphiques et tableaux.
+
+La valeur de référence est une donnée de comparaison : elle n'est jamais ajoutée automatiquement au
+total simulé. Une même combinaison de registre, paramètres et graine produit le même échantillon.
+
+## Architecture
+
+| Couche | Emplacement | Responsabilité |
+| --- | --- | --- |
+| Interface | `web/` | React, TypeScript et Vite ; saisie, affichage et navigation. |
+| API | `src/monte_carlo_simulator/web_api.py` | API FastAPI et distribution de l'interface construite. |
+| Moteur | `src/monte_carlo_simulator/` | distributions, corrélations, statistiques et exports. |
+| Données | SQLite locale | projets, registres, scénarios et simulations conservées. |
+| Packaging | `packaging/` | construction PyInstaller de la version portable Windows. |
+
+React ne contient pas les règles probabilistes : il appelle l'API, qui délègue au moteur Python. La
+description détaillée est disponible dans [l'architecture technique](docs/reference/architecture.md).
+
+## Contrat Excel
+
+Le modèle public se trouve dans
+[`data/templates/risk_register_template.xlsx`](data/templates/risk_register_template.xlsx). Il
+utilise le schéma versionné `1.0` :
+
+- feuille `metadata` : identité du projet, type d'analyse, unité commune et référence facultative ;
+- feuille `risk_register` : postes, distributions et paramètres ;
+- feuille `correlations` : facultative, uniquement en cas de dépendances entre postes.
+
+Le détail des colonnes, règles de validation et artefacts est décrit dans le
+[guide Excel](docs/guides/user_guide.md).
+
+## Tests et qualité
+
+```bash
+# Python
+python -m ruff check src tests
+python -m ruff format --check src tests
+python -m pytest -q
+
+# Interface React
+cd web
+npm test -- --pool=threads
 npm run build
 ```
 
-## Simplified architecture
+L'intégration continue teste Python 3.11 et 3.12, le lint, le formatage, le typage, la couverture,
+les tests React et la construction de l'interface. La version portable a en outre été validée par un
+démarrage réel, une simulation, un export et une fermeture depuis un dossier ZIP nouvellement extrait.
+
+## Organisation du dépôt
 
 ```text
-web/                         React + TypeScript + Vite frontend
-        |
-        v  HTTP (src/monte_carlo_simulator/web_api.py)
-        |
-src/monte_carlo_simulator/
-  application/               Application orchestration
-  models/                    Domain models
-  distributions/             Supported probability laws
-  engine/                    Monte Carlo execution
-  analysis/                  Percentiles, sensitivity, convergence
-  io/                        Excel schema, validation and exports
-  visualization/             Static/export visualizations
-
-tests/                       unit/ and integration/ suites
-scripts/                     register generators and case-study tooling
-data/
-  templates/                 public fictitious workbooks
-  input/                     sample inputs
-  output/                    runtime outputs — generated, never versioned
-docs/
-  guides/                    how to run and hand over the project
-  reference/                 architecture, methodology, documented case
-  validation/                published validation evidence
-  archive/                   dated deliverables kept as-is
-reports/                     generated deliverables (S5 report, case study)
+src/monte_carlo_simulator/  moteur Python, API et persistance
+web/                        interface React
+data/templates/             modèle Excel public
+packaging/                  configuration PyInstaller et notice portable
+tests/                       tests unitaires et d'intégration
+docs/                        guides, références, archives et résultats de validation
+scripts/                    génération de jeux d'essai et rapports
+reports/                    livrables de stage et preuves datées
 ```
-
-Two directory names carry a deliberate distinction: `data/output/` holds everything a run
-generates and is never versioned, while `reports/` holds the finished deliverables that are.
-
-The interactive layer must remain thin: probabilistic rules belong in `src/monte_carlo_simulator`, not in React components.
 
 ## Documentation
 
-Start from the [documentation index](docs/README.md).
+Le point d'entrée complet est [docs/README.md](docs/README.md).
 
-- [30-minute user guide](docs/guides/user_guide_30min.md)
-- [Detailed Excel/schema guide](docs/guides/user_guide.md)
-- [Technical handover](docs/guides/handover.md)
-- [Project overview](docs/reference/project_overview.md)
-- [Consultant-facing methodology note](docs/reference/methodology_note.md)
-- [Technical methodology](docs/reference/methodology.md)
-- [Architecture](docs/reference/architecture.md)
-- [React frontend notes](web/README.md)
-- [Dated deliverables and working notes](docs/archive/)
+- [Guide de prise en main en 30 minutes](docs/guides/user_guide_30min.md)
+- [Guide Excel et règles d'exécution](docs/guides/user_guide.md)
+- [Passation technique](docs/guides/handover.md)
+- [Vue d'ensemble du projet](docs/reference/project_overview.md)
+- [Architecture technique](docs/reference/architecture.md)
+- [Note méthodologique vulgarisée](docs/reference/methodology_note.md)
+- [Méthodologie technique](docs/reference/methodology.md)
 
-## Known limitation
+## Confidentialité et limites
 
-The current editable-hypotheses adapter exposes imported metadata and risk rows, but correlation matrices require special care when regenerating an edited workbook. Until this path is fully preserved end-to-end, correlated workbooks should be validated after editing to ensure the `correlations` sheet has not been lost.
+Ne jamais ajouter de registres réels, d'exports clients ou de bases SQLite au dépôt. Les fichiers
+Excel réels doivent rester hors de Git et être anonymisés avant tout partage autorisé.
 
-## Confidentiality
-
-- Do not commit real risk registers without anonymization and authorization.
-- Do not add client identifiers or personal data to examples or tests.
-- `.xlsx` and `.xls` files remain ignored globally except for the public fictitious template explicitly allowed by the repository rules.
-- The local database holds client risk registers: back up `MCS_DATA_DIR` like any other confidential asset, never commit it, and rely on full-disk encryption to protect it at rest.
-- The service binds to `127.0.0.1` and cannot be reconfigured: without authentication, any network bind would expose the registers to the whole subnet.
-
-## Next steps
-
-Priority work for the end of S5 / beginning of S6:
-
-- preserve imported correlation matrices through the editable-hypotheses workflow;
-- connect the React service layer to the Python backend while keeping the simulation engine unchanged;
-- consolidate direct what-if editing and scenario comparison;
-- finalize user documentation and handover;
-- optional PDF/PowerPoint decision exports;
-- calibration from authorized historical project data if such data become available.
+RiskSim vérifie la cohérence mathématique et informatique des hypothèses ; il ne garantit pas que
+ces hypothèses décrivent fidèlement un projet réel. Cette validation métier relève du consultant et
+des responsables du projet.

@@ -30,7 +30,7 @@ Ouvrez ensuite `http://localhost:5173/risques`. Vous pouvez construire le regist
 - le moteur conserve les corrélations présentes dans le registre Excel ;
 - les scénarios sont enregistrés avec une copie du registre et de la configuration dans l'onglet Scénarios de `/configuration` ;
 - un run peut toujours être figé comme référence dans le navigateur et comparé au run suivant ;
-- certaines vues secondaires utilisent encore les données de démonstration de `src/data/mockSimulation.ts` ;
+- les vues de pilotage s’appuient sur les données locales réellement enregistrées par l’application ;
 - `src/services/simulationService.ts` constitue le contrat d'adaptation entre React et Python.
 
 Pour produire la version optimisée :
