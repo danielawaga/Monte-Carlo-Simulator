@@ -108,18 +108,24 @@ would let every device on the subnet list, overwrite and delete the saved regist
 make that safe: it encrypts the connection, it does not decide who may use it. Reaching the tool from
 another machine would need an authentication layer back, which is a deliberate change and not a flag.
 
-### A double-clickable executable
+### Version portable Windows
 
-`packaging/monte-carlo-simulator.spec` bundles the interpreter, the server, the built interface and
-the blank workbook into one file. The `Executable` workflow builds it on Windows — on demand or on a
-`v*` tag — smoke-tests that the binary actually serves `/api/health` and the interface, then
-publishes it as an artifact.
+La version prête à l’emploi est disponible dans
+[`output/packages/RiskSim-Windows-x64-Portable.zip`](output/packages/RiskSim-Windows-x64-Portable.zip).
+Elle comprend le moteur Python, l’API locale, l’interface React et ses dépendances : aucune
+installation de Python, Node.js ou package supplémentaire n’est nécessaire sur le poste de test.
 
-The current prebuilt Windows version is available at
-[`dist/MonteCarloSimulator.exe`](dist/MonteCarloSimulator.exe) through Git LFS. Download or copy the
-file to the target computer, then double-click it: no terminal window is shown and the default
-browser opens automatically once the local engine is ready. The first start can take a few seconds
-while the single-file package extracts its components.
+Depuis GitHub, ouvrir ce fichier puis choisir **Download raw file**, décompresser l’archive et lancer
+`RiskSim.exe`. Le terminal affiche le démarrage et les erreurs éventuelles ; le navigateur s’ouvre
+une fois l’application prête. Pour arrêter RiskSim, utiliser `Ctrl+C`, `exit`, `quit`, `q` ou le
+bouton « Quitter RiskSim » de l’interface.
+
+L’archive est stockée avec Git LFS. Pour la récupérer au moyen d’un clone local, installer Git LFS
+puis exécuter `git lfs pull` dans le dépôt cloné. Sans Git LFS, Git ne récupère qu’un petit fichier
+de référence, et non l’archive complète.
+
+La construction portable est décrite dans `packaging/monte-carlo-simulator-portable.spec` et validée
+par un démarrage réel, une simulation et un export depuis un dossier ZIP nouvellement extrait.
 
 ```bash
 cd web && npm run build && cd ..
