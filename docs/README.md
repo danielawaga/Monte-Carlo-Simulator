@@ -9,8 +9,8 @@ Documentation opérationnelle, maintenue à jour avec le code.
 
 | Document | Pour qui | Contenu |
 | --- | --- | --- |
-| [`user_guide_30min.md`](guides/user_guide_30min.md) | consultant | prise en main complète : installation, registre, simulation, lecture, export |
-| [`user_guide.md`](guides/user_guide.md) | consultant, intégrateur | référence du schéma Excel `1.0`, règles de validation et chemins d'exécution |
+| [`user_guide_30min.md`](guides/user_guide_30min.md) | consultant | prise en main guidée : version portable, registre, simulation, lecture et export |
+| [`user_guide.md`](guides/user_guide.md) | consultant, intégrateur | référence détaillée du schéma Excel `1.0`, validations, artefacts et modes d'exécution |
 | [`handover.md`](guides/handover.md) | repreneur technique | passation : architecture, installation, points d'extension, diagnostic |
 
 ## `reference/` — comprendre les choix
@@ -25,7 +25,7 @@ Documentation de fond, maintenue à jour avec le moteur.
 | [`methodology_note.md`](reference/methodology_note.md) | même méthode, sans prérequis mathématique |
 | [`registre_synthetique_batiment.md`](reference/registre_synthetique_batiment.md) | cas d'étude documenté servant de support de validation |
 
-## `validation/` — preuves publiées
+## `validation/` — preuves de validation
 
 Résultats tabulaires des contrôles de distributions, de corrélations et de registres invalides,
 au format CSV et JSON. Ces fichiers sont des données, pas de la prose.
@@ -33,8 +33,8 @@ au format CSV et JSON. Ces fichiers sont des données, pas de la prose.
 ## `archive/` — livrables datés
 
 Documents qui rendent compte d'un périmètre à une date donnée. **Ils ne sont pas mis à jour** : les
-corriger falsifierait ce qu'ils attestent. Ils peuvent donc décrire des choses qui ont changé depuis,
-comme l'interface Streamlit retirée en S6.
+corriger falsifierait ce qu'ils attestent. Ils peuvent donc décrire des éléments qui ont changé
+depuis, comme l'interface Streamlit retirée au cours du stage.
 
 | Document | Date de référence |
 | --- | --- |
@@ -44,7 +44,7 @@ comme l'interface Streamlit retirée en S6.
 
 ## Ailleurs dans le dépôt
 
-- [`../README.md`](../README.md) — présentation générale, installation et architecture ;
+- [`../README.md`](../README.md) — présentation générale, version portable et architecture ;
 - [`../web/README.md`](../web/README.md) — notes sur l'interface React ;
 - [`../reports/`](../reports/) — livrables générés (rapport S5, étude de cas PDF) ;
 - [`../scripts/case_study/README.md`](../scripts/case_study/README.md) — chaîne de génération de l'étude de cas.

@@ -1,111 +1,127 @@
-# User guide — Excel schema and execution reference
+# Guide Excel et règles d'exécution
 
-For a consultant-facing walkthrough, start with [`user_guide_30min.md`](user_guide_30min.md). This document is the detailed reference for the Excel schema, validation rules and available execution paths.
+Pour une première utilisation accompagnée, consulter le
+[guide de prise en main en 30 minutes](user_guide_30min.md). Ce document décrit le schéma Excel,
+les validations et les modes d'exécution du moteur.
 
-## Start from the template
+## Commencer avec le modèle
 
-Copy `data/templates/risk_register_template.xlsx` outside the repository before entering real project data. The committed workbook is fictitious and covers all six supported distributions.
+Copier `data/templates/risk_register_template.xlsx` en dehors du dépôt avant de saisir des données
+de projet. Le classeur versionné est fictif et couvre les six distributions prises en charge.
 
-The workbook schema is versioned. This guide describes schema `1.0`; an unsupported version is rejected instead of being guessed or migrated silently.
+Le schéma est versionné. Ce guide décrit la version `1.0` ; une version inconnue est rejetée au lieu
+d'être devinée ou modifiée silencieusement.
 
-## `metadata` sheet
+## Feuille `metadata`
 
-The sheet uses the headers `key` and `value`.
+La feuille contient les colonnes `key` et `value`.
 
-| Key | Required | Rule |
+| Clé | Obligatoire | Règle |
 | --- | --- | --- |
-| `schema_version` | yes | Text equal to `1.0` |
-| `project_name` | yes | Non-empty text |
-| `analysis_type` | yes | `cost` or `duration`, case-insensitive |
-| `default_unit` | yes | Common currency or time unit such as `MAD`, `EUR`, `days` |
-| `baseline_estimate` | no | Finite real number when supplied |
-| `description` | no | Non-confidential text |
+| `schema_version` | oui | texte égal à `1.0` |
+| `project_name` | oui | texte non vide |
+| `analysis_type` | oui | `cost` ou `duration`, sans tenir compte de la casse |
+| `default_unit` | oui | monnaie ou unité de temps commune, par exemple `MAD`, `EUR`, `jours` |
+| `baseline_estimate` | non | nombre réel fini lorsqu'il est renseigné |
+| `description` | non | texte non confidentiel |
 
-`baseline_estimate` is contextual information for comparison and reporting. It is **not** automatically added to simulated samples. If a deterministic amount must form part of the simulated total, represent it as an explicit active item.
+`baseline_estimate` sert à comparer et à restituer les résultats. Elle n'est **pas** ajoutée
+automatiquement aux échantillons. Une valeur déterministe faisant partie du total doit être saisie
+comme poste actif.
 
-## `risk_register` sheet
+## Feuille `risk_register`
 
-One row represents one cost/duration item or one event risk.
+Une ligne représente un poste de coût, de durée ou un risque événementiel.
 
-| Column | Value |
+| Colonne | Valeur attendue |
 | --- | --- |
-| `name` | Required non-empty item name, unique ignoring case and outer spaces |
-| `distribution` | Required canonical name or supported alias |
-| `minimum` | Minimum for triangular, PERT or uniform |
-| `most_likely` | Mode for triangular or PERT |
-| `maximum` | Maximum for triangular, PERT or uniform |
-| `mean` | Arithmetic mean for normal or log-normal |
-| `standard_deviation` | Arithmetic standard deviation for normal or log-normal |
-| `probability` | Event probability in `[0, 1]` |
-| `impact` | Deterministic event impact |
-| `lambda_shape` | Optional positive PERT shape; blank means `4.0` |
-| `category` | Optional descriptive category |
-| `unit` | Optional row unit; blank inherits `default_unit` |
-| `enabled` | Optional; blank means active, `FALSE` ignores the row |
-| `notes` | Optional free text |
+| `name` | nom obligatoire, non vide et unique sans tenir compte de la casse ni des espaces externes |
+| `distribution` | nom canonique ou alias pris en charge |
+| `minimum` | minimum pour triangulaire, PERT ou uniforme |
+| `most_likely` | valeur la plus probable pour triangulaire ou PERT |
+| `maximum` | maximum pour triangulaire, PERT ou uniforme |
+| `mean` | moyenne arithmétique pour normale ou lognormale |
+| `standard_deviation` | écart-type arithmétique pour normale ou lognormale |
+| `probability` | probabilité d'un événement dans `[0, 1]` |
+| `impact` | impact déterministe de l'événement |
+| `lambda_shape` | forme PERT positive facultative ; vide signifie `4.0` |
+| `category` | catégorie descriptive facultative |
+| `unit` | unité de la ligne facultative ; vide hérite de `default_unit` |
+| `enabled` | facultatif ; vide signifie actif, `FALSE` ignore la ligne |
+| `notes` | texte libre facultatif |
 
-`enabled` and `notes` may be absent. Other schema columns must exist, although unused cells may remain blank.
+Les colonnes `enabled` et `notes` peuvent être absentes. Toutes les autres colonnes du schéma
+sont requises, même si les cellules inutilisées restent vides.
 
-### Required parameters by distribution
+### Paramètres requis par distribution
 
-| Distribution | Required cells | Domain |
+| Distribution | Cellules requises | Domaine |
 | --- | --- | --- |
 | `triangular` | `minimum`, `most_likely`, `maximum` | `minimum <= most_likely <= maximum` |
-| `pert` | `minimum`, `most_likely`, `maximum` | same ordering; optional `lambda_shape > 0` |
+| `pert` | `minimum`, `most_likely`, `maximum` | même ordre ; `lambda_shape > 0` si renseigné |
 | `uniform` | `minimum`, `maximum` | `minimum <= maximum` |
 | `normal` | `mean`, `standard_deviation` | `standard_deviation >= 0` |
-| `lognormal` | `mean`, `standard_deviation` | arithmetic `mean > 0`, deviation `>= 0` |
-| `event` | `probability`, `impact` | `probability` in `[0, 1]` |
+| `lognormal` | `mean`, `standard_deviation` | moyenne arithmétique strictement positive, écart-type positif ou nul |
+| `event` | `probability`, `impact` | probabilité dans `[0, 1]` |
 
-Finite numeric Excel cells and finite numeric strings are accepted at the import boundary. Booleans, `NaN`, infinities and arbitrary text are not accepted as numeric parameters.
+Les cellules numériques finies et les chaînes numériques finies sont acceptées. Les booléens,
+`NaN`, les infinis et le texte arbitraire ne sont pas acceptés comme paramètres numériques.
 
-Finite negative values are allowed when mathematically meaningful, including a negative event impact representing an opportunity. They are not valid for a standard deviation, a PERT shape or a log-normal mean.
+Une valeur négative est admise lorsqu'elle a un sens mathématique, par exemple l'impact négatif
+d'une opportunité. Elle n'est jamais admise pour un écart-type, une forme PERT ou une moyenne
+lognormale.
 
-## Distribution aliases
+### Alias de distributions
 
-Canonical names are `triangular`, `pert`, `uniform`, `normal`, `lognormal` and `event`.
+Les noms canoniques sont `triangular`, `pert`, `uniform`, `normal`, `lognormal` et
+`event`. Les alias suivants sont acceptés :
 
-Accepted aliases include:
+- `beta-pert`, `beta_pert`, `beta pert` → `pert` ;
+- `log-normal`, `log_normal`, `log normal` → `lognormal` ;
+- `event-based`, `event_based`, `event based`, `eventual`, `bernoulli`,
+  `bernoulli-event`, `bernoulli_event` → `event`.
 
-- `beta-pert`, `beta_pert`, `beta pert` → `pert`;
-- `log-normal`, `log_normal`, `log normal` → `lognormal`;
-- `event-based`, `event_based`, `event based`, `eventual`, `bernoulli`, `bernoulli-event`, `bernoulli_event` → `event`.
+Les noms sont nettoyés des espaces externes et ne tiennent pas compte de la casse.
 
-Distribution names are trimmed and case-insensitive.
+## Unités
 
-## Units
+Toutes les lignes actives doivent aboutir à une même unité. Une unité de ligne vide hérite de
+`default_unit`. La comparaison ne tient pas compte de la casse, mais le moteur ne convertit ni les
+monnaies ni les unités de temps. Un mélange incompatible est rejeté.
 
-Every active row must resolve to one common unit. A blank row unit inherits `default_unit`; matching is case-insensitive. Registers mixing currencies or time units are rejected. The importer never performs exchange-rate or time-unit conversion.
+Les lignes désactivées sont ignorées avant la validation de leurs paramètres et de leur unité.
 
-Disabled rows are ignored before parameter and unit validation.
+## Feuille facultative `correlations`
 
-## Optional `correlations` sheet
+Cette feuille définit une matrice carrée dont les lignes et colonnes portent les noms des postes
+actifs. Leur ordre peut différer : l'alignement est réalisé sur les noms.
 
-The sheet defines a square matrix whose rows and columns are active item names. Row and column order may differ because alignment is performed by name before validation.
+La matrice doit :
 
-The matrix must:
+- couvrir exactement les postes actifs ;
+- être carrée, finie et symétrique ;
+- contenir des coefficients dans `[-1, 1]` ;
+- avoir une diagonale égale à 1 ;
+- être strictement définie positive.
 
-- cover exactly the active items;
-- be square and finite;
-- be symmetric;
-- contain coefficients in `[-1, 1]`;
-- have a unit diagonal;
-- be strictly positive definite.
+Le moteur utilise une copule gaussienne et une décomposition de Cholesky. Une matrice invalide est
+rejetée : elle n'est ni projetée, ni tronquée, ni réparée silencieusement. Une simulation corrélée
+valide produit `correlation_diagnostics.csv` avec
+`automatic_repair_applied = False`.
 
-The implementation uses a Gaussian copula with Cholesky decomposition. Invalid matrices are rejected. The application does not project, clip, jitter or otherwise repair a user matrix silently.
+## Utiliser l'interface
 
-A valid correlated run writes `correlation_diagnostics.csv` with numerical health evidence and `automatic_repair_applied = False`.
+La version portable Windows est le moyen recommandé pour un consultant. Elle se lance avec
+`RiskSim.exe` après décompression du ZIP ; voir le [README racine](../../README.md).
 
-## Run the React interface
-
-The interface talks to the Python engine over HTTP. Start the API first:
+Pour développer l'interface, démarrer d'abord l'API :
 
 ```bash
 pip install -e ".[web]"
 uvicorn monte_carlo_simulator.web_api:app --port 8000
 ```
 
-Then, in a second terminal, the frontend:
+Puis, dans un second terminal :
 
 ```bash
 cd web
@@ -113,22 +129,12 @@ npm install
 npm run dev
 ```
 
-The interface provides:
+L'interface permet l'import et l'export du registre, la construction dans le navigateur, le choix du
+nombre de tirages et de la graine, les niveaux P50/P75/P80/P90/P95, les graphiques interactifs,
+l'analyse de sensibilité, la convergence, les scénarios et les exports Excel ou ZIP. Les erreurs de
+validation indiquent la feuille, la ligne, le poste et le champ lorsque ces informations existent.
 
-- `.xlsx` import and export of a schema-1.0 register;
-- an in-browser register builder, with a one-click reset back to the imported assumptions;
-- simulation count and seed controls;
-- P50/P80/P90/P95 decision-level selector;
-- interactive histogram and S-curve;
-- baseline exceedance probability and reserve;
-- interactive Spearman tornado;
-- convergence view and correlation diagnostics;
-- scenario snapshots and side-by-side scenario comparison;
-- an Excel results workbook and a ZIP bundle of every artifact.
-
-Validation failures are displayed with workbook context whenever available.
-
-## Run the CLI
+## Utiliser la ligne de commande
 
 ```bash
 python -m monte_carlo_simulator.cli \
@@ -138,88 +144,53 @@ python -m monte_carlo_simulator.cli \
   --output-dir data/output
 ```
 
-Without `--input`, the built-in fictitious demonstration remains available:
+Sans `--input`, la démonstration fictive intégrée reste disponible :
 
 ```bash
 python -m monte_carlo_simulator.cli
 ```
 
-## Generated artifacts
+## Artefacts générés
 
-A standard Excel run produces:
+Une exécution Excel standard produit notamment :
 
-- `simulation_summary.csv` — mean, median, standard deviation, min/max and configured percentiles;
-- `simulation_histogram.png` — static histogram with percentile markers;
-- `simulation_s_curve.png` — empirical cumulative curve;
-- `percentile_decision_table.csv` — percentile, exceedance probability, baseline gap and reserve where applicable;
-- `convergence_diagnostics.csv` — cumulative stability of the target percentile;
-- `sensitivity_summary.csv` — Spearman coefficient, absolute coefficient, rank and defined/undefined status;
-- `sensitivity_tornado.png` — defined sensitivity rows ordered by importance.
+- `simulation_summary.csv` : moyenne, médiane, écart-type, minimum, maximum et percentiles ;
+- `simulation_histogram.png` : histogramme avec marqueurs de percentiles ;
+- `simulation_s_curve.png` : courbe cumulée empirique ;
+- `percentile_decision_table.csv` : percentiles, dépassement, écarts et réserves ;
+- `convergence_diagnostics.csv` : stabilité progressive du percentile cible ;
+- `sensitivity_summary.csv` et `sensitivity_tornado.png` : influence des postes.
 
-Optional artifacts:
+`baseline_comparison.csv` est ajouté lorsqu'une référence existe et
+`correlation_diagnostics.csv` lorsqu'une matrice de corrélation est fournie.
 
-- `baseline_comparison.csv` when `baseline_estimate` exists;
-- `correlation_diagnostics.csv` when a correlation matrix exists.
+## Lecture des résultats
 
-## Reading the Spearman outputs
+La sensibilité de Spearman mesure le lien monotone entre les tirages d'un poste et le total simulé.
+Une entrée déterministe possède une corrélation indéfinie ; elle reste documentée dans le CSV mais
+est exclue du tornado par défaut. Avec des entrées corrélées, ce classement est descriptif : il ne
+constitue ni une causalité ni une décomposition additive de variance.
 
-The sensitivity table contains:
+Le diagnostic de convergence suit la stabilité du percentile cible au fil des blocs de tirages. Une
+estimation stable indique que le nombre de tirages est numériquement adapté à cette simulation ; elle
+ne valide pas les hypothèses métier du registre.
 
-- `item_name`;
-- `spearman_rho`;
-- `absolute_rho`;
-- `rank`;
-- `direction`;
-- `is_defined`;
-- `undefined_reason`.
+La comparaison à la référence rapporte la référence, la moyenne, la probabilité stricte
+`P(total > référence)`, les percentiles, les écarts et une réserve non négative. L'égalité avec la
+référence n'est pas considérée comme un dépassement.
 
-A deterministic input is constant, so its Spearman correlation is mathematically undefined. Such a row remains in the CSV with `undefined_reason = constant_input` and is excluded from the tornado by default.
+## Erreurs courantes et reproductibilité
 
-With correlated inputs, Spearman remains descriptive. It is not a causal effect, not an additive variance decomposition and should not be normalized to sum to 100 %.
+Le chargeur regroupe les erreurs indépendantes avant d'arrêter le traitement. Les causes habituelles
+sont une feuille, une clé ou une colonne manquante, un nom en double, des paramètres invalides, des
+unités incompatibles, un fichier non Excel ou une matrice de corrélation invalide.
 
-## Baseline comparison
+Le même registre, l'ordre des postes actifs, le nombre de tirages, les niveaux de confiance et la
+même graine produisent le même échantillon. Pour tracer une décision, conserver au minimum
+l'identifiant du registre, le commit du dépôt, le nombre de tirages et la graine.
 
-When `baseline_estimate` is present, the workflow reports:
+## Confidentialité
 
-- the baseline;
-- the simulated mean;
-- strict `P(total > baseline)`;
-- P50, P80 and P90;
-- percentile gaps against baseline;
-- relative gaps when the baseline is positive;
-- non-negative reserves.
-
-Equality with the baseline is not counted as an exceedance. Relative gaps are undefined for zero or negative baselines.
-
-## Convergence
-
-The convergence diagnostic recomputes the target percentile over cumulative blocks of samples. It tracks absolute and relative changes, counts consecutive stable blocks and can mark one recommended stopping point.
-
-A stable percentile estimate indicates that the sample count is numerically adequate for that run. It does not validate the business assumptions in the workbook.
-
-## Validation errors
-
-The loader collects independent problems before failing. Common causes include:
-
-- missing required worksheet, metadata key or column;
-- unsupported schema version or distribution;
-- blank or duplicate names;
-- missing or invalid distribution parameters;
-- invalid probability, standard deviation or PERT shape;
-- incompatible units or no active rows;
-- a missing, corrupt or non-`.xlsx` input;
-- a malformed or non-positive-definite correlation matrix.
-
-Programming exceptions are not converted into workbook validation messages.
-
-## Reproducibility
-
-Using the same workbook, active item order, simulation count, confidence levels and seed reproduces the same samples. For a decision trace, record at minimum the input identifier, repository commit, number of simulations and seed.
-
-## Confidentiality
-
-Real client and project registers must not be committed. Repository rules ignore `.xlsx` and `.xls` files except the public fictitious template. Keep real workbooks outside Git and only share anonymized data under the appropriate authorization.
-
-## Current extension boundary
-
-The S4 scope is implemented: interactive interface, tests/quality gate, user documentation, methodology note and handover material. Planned S5/S6 extensions include what-if analysis, scenario comparison, PDF/PowerPoint exports and calibration from authorized historical data.
+Les registres clients réels ne doivent jamais être commités. Les fichiers `.xlsx` et `.xls` sont
+ignorés par défaut, à l’exception du modèle fictif public. Conserver les classeurs réels hors de Git
+et ne partager que des données anonymisées avec l’autorisation appropriée.

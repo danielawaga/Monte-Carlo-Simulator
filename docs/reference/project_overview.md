@@ -254,11 +254,11 @@ Ce mode permet le rechargement rapide de l'interface et l'exécution des tests f
 
 ### 9.2 Version utilisateur
 
-L'exécutable Windows contient Python, l'API, le frontend déjà construit et le modèle Excel. Un double
-clic démarre silencieusement le service local, sans ouvrir de terminal. Le navigateur s'ouvre
-uniquement après que l'API a confirmé qu'elle était prête, ce qui évite une page temporairement
-inaccessible. Si le port 8000 est occupé, le lanceur choisit automatiquement le premier port libre
-suivant.
+La version portable Windows contient Python, l'API, le frontend déjà construit et le modèle Excel.
+Un double clic sur `RiskSim.exe` ouvre un terminal qui décrit le démarrage et les erreurs éventuelles.
+Le navigateur s'ouvre uniquement après que l'API a confirmé qu'elle était prête, ce qui évite une
+page temporairement inaccessible. Si le port 8000 est occupé, le lanceur choisit automatiquement le
+premier port libre suivant. Le terminal permet un arrêt propre par `Ctrl+C`, `exit`, `quit` ou `q`.
 
 Les données durables ne sont pas écrites à côté de l'exécutable. Elles sont stockées par défaut dans :
 

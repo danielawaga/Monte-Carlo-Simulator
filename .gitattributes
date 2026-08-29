@@ -1,2 +1,4 @@
 *.pdf binary
+*.py text eol=lf
 dist/MonteCarloSimulator.exe filter=lfs diff=lfs merge=lfs -text
+output/packages/RiskSim-Windows-x64-Portable.zip filter=lfs diff=lfs merge=lfs -text

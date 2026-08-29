@@ -1,13 +1,13 @@
 # Passation technique — Monte Carlo Simulator
 
-Ce document sert de support à la session de reprise prévue en semaine 4. Il doit être parcouru avec le repreneur interne sur une machine propre, en exécutant réellement le flux Excel → simulation → export.
+Ce document sert de support à une reprise technique sur une machine propre. Il doit être parcouru avec le repreneur en exécutant réellement le flux Excel → simulation → export.
 
 ## 1. Repreneur
 
 - **Nom / rôle :** à renseigner par le maître de stage
 - **Date de passation :** à renseigner
 - **Version transmise :** branche ou commit de release à renseigner
-- **Dépôt :** `Rudolf-Staline/Monte-Carlo-Simulator`
+- **Dépôt :** `danielawaga/Monte-Carlo-Simulator`
 
 L'identification du repreneur est une décision organisationnelle externe au dépôt. La passation n'est considérée comme terminée qu'après exécution de la checklist de validation en fin de document.
 
@@ -33,7 +33,17 @@ reports/            livrables générés (rapport S5, étude de cas)
 
 Le principe important est que l'interface ne contient pas le moteur métier. Elle appelle l'API HTTP (`web_api.py`), qui délègue à `run_simulation_from_excel` — le même workflow que la CLI.
 
-## 3. Installation de reprise
+## 3. Lancement de reprise
+
+### Version portable Windows recommandée
+
+Depuis la page des releases ou le dépôt cloné avec Git LFS, télécharger
+`RiskSim-Windows-x64-Portable.zip`, l’extraire entièrement, puis lancer
+`RiskSim.exe`. Aucun package Python, Node.js ou navigateur particulier n’est
+requis. Une console indique l’adresse locale ouverte dans le navigateur ;
+`Ctrl+C` ou `exit` arrête proprement l’application.
+
+### Environnement de développement
 
 ```bash
 python -m venv .venv
@@ -46,8 +56,8 @@ pip install -e ".[dev,web]"
 Vérifications :
 
 ```bash
-ruff check .
-ruff format --check .
+ruff check src tests
+ruff format --check src tests
 pytest -v
 pytest --cov=monte_carlo_simulator --cov-report=term-missing --cov-fail-under=85
 mypy src/monte_carlo_simulator
@@ -55,7 +65,7 @@ mypy src/monte_carlo_simulator
 
 ## 4. Exécuter les trois chemins importants
 
-### Interface consultant
+### Interface de développement
 
 Deux terminaux. D'abord l'API Python :
 
@@ -145,10 +155,10 @@ Les tests valident surtout le comportement logiciel. Revenir aux hypothèses mé
 
 La session est considérée comme terminée lorsque le repreneur a lui-même :
 
-- [ ] cloné ou récupéré le dépôt ;
-- [ ] créé l'environnement et installé `.[dev,web]` ;
-- [ ] exécuté la suite de tests ;
-- [ ] lancé l'API puis l'interface React ;
+- [ ] récupéré l’archive portable ou cloné le dépôt avec Git LFS ;
+- [ ] lancé l’application portable, ou créé l’environnement de développement ;
+- [ ] exécuté la suite de tests (pour une reprise de développement) ;
+- [ ] lancé l’API puis l’interface React (pour une reprise de développement) ;
 - [ ] chargé le modèle Excel ;
 - [ ] produit un run à 10 000 tirages ;
 - [ ] expliqué P50, P80, P90 et la probabilité de dépassement ;
@@ -159,6 +169,6 @@ La session est considérée comme terminée lorsque le repreneur a lui-même :
 - [ ] localisé les modules à modifier pour une extension ;
 - [ ] confirmé les règles de confidentialité.
 
-## 10. Extensions prévues après S4
+## 10. Pistes d’évolution
 
-Les semaines 5–6 peuvent absorber les retours utilisateurs puis développer, selon priorité : mode what-if, comparaison de scénarios, exports PDF/PowerPoint et calibration sur historique autorisé.
+Les évolutions possibles, selon les besoins métier, incluent le mode what-if, la comparaison approfondie de scénarios, les exports PDF/PowerPoint et la calibration sur un historique autorisé.
