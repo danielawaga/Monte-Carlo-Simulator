@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import socket
 import sys
+from io import StringIO
 from pathlib import Path
 
 import pytest
@@ -57,6 +58,24 @@ class TestPortSelection:
 
             assert chosen != busy
             assert chosen > busy
+
+    def test_an_existing_risksim_server_is_discovered(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        checked: list[str] = []
+
+        def ready(url: str) -> bool:
+            checked.append(url)
+            return url.endswith(":8002")
+
+        monkeypatch.setattr(launcher, "server_is_ready", ready)
+
+        assert launcher.find_running_server("127.0.0.1", 8000) == "http://127.0.0.1:8002"
+        assert checked == [
+            "http://127.0.0.1:8000",
+            "http://127.0.0.1:8001",
+            "http://127.0.0.1:8002",
+        ]
 
     def test_giving_up_is_explicit(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(launcher, "port_is_free", lambda *_: False)
@@ -135,6 +154,36 @@ class TestCommandLine:
 
         assert options.port == 9200
         assert options.no_browser is True
+
+
+class TestTerminalShutdown:
+    def test_exit_stops_the_server(self, capsys: pytest.CaptureFixture[str]) -> None:
+        server = _FakeServer()
+
+        launcher._listen_for_shutdown_commands(server, StringIO("exit\n"))
+
+        assert server.should_exit is True
+        assert "Arrêt demandé" in capsys.readouterr().out
+
+    @pytest.mark.parametrize("command", ["quit", "q", " EXIT "])
+    def test_all_documented_commands_are_accepted(self, command: str) -> None:
+        server = _FakeServer()
+
+        launcher._listen_for_shutdown_commands(server, StringIO(f"{command}\n"))
+
+        assert server.should_exit is True
+
+    def test_an_unknown_command_keeps_listening(self, capsys: pytest.CaptureFixture[str]) -> None:
+        server = _FakeServer()
+
+        launcher._listen_for_shutdown_commands(server, StringIO("stop\nq\n"))
+
+        assert server.should_exit is True
+        assert "Commande inconnue" in capsys.readouterr().out
+
+
+class _FakeServer:
+    should_exit = False
 
 
 def _an_unused_port() -> int:

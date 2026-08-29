@@ -6,10 +6,12 @@ import {
   Home,
   Monitor,
   Moon,
+  Power,
   Settings,
   Sun,
   X,
 } from 'lucide-react';
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTheme, type ThemePreference } from '../../state/ThemeContext';
 
@@ -49,6 +51,27 @@ type SidebarProps = {
 
 export function Sidebar({ collapsed, mobileOpen, onNavigate, onMobileClose }: SidebarProps) {
   const { theme, setTheme } = useTheme();
+  const [shutdownState, setShutdownState] = useState<'idle' | 'stopping' | 'stopped'>('idle');
+
+  const shutdownApplication = async () => {
+    const confirmed = window.confirm(
+      'Quitter complètement RiskSim ?\n\nLe moteur local sera arrêté. Enregistrez ou téléchargez vos résultats avant de continuer.',
+    );
+    if (!confirmed) return;
+
+    setShutdownState('stopping');
+    try {
+      const response = await fetch('/api/shutdown', { method: 'POST' });
+      if (!response.ok) throw new Error('shutdown-unavailable');
+      setShutdownState('stopped');
+      onNavigate();
+    } catch {
+      setShutdownState('idle');
+      window.alert(
+        'L’arrêt automatique est indisponible. Dans le terminal RiskSim, saisissez exit ou appuyez sur Ctrl+C.',
+      );
+    }
+  };
 
   return (
     <aside className={`sidebar ${collapsed ? 'is-collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
@@ -74,7 +97,23 @@ export function Sidebar({ collapsed, mobileOpen, onNavigate, onMobileClose }: Si
         <NavLink className="nav-main help-link" to="/aide" title={collapsed ? 'Aide & documentation' : undefined} onClick={onNavigate}>
           <CircleHelp /><span>Aide &amp; documentation</span>
         </NavLink>
+        <button
+          className="nav-main shutdown-control"
+          type="button"
+          onClick={() => void shutdownApplication()}
+          disabled={shutdownState === 'stopping'}
+          title={collapsed ? 'Quitter RiskSim' : undefined}
+        >
+          <Power /><span>{shutdownState === 'stopping' ? 'Arrêt en cours…' : 'Quitter RiskSim'}</span>
+        </button>
       </div>
+      {shutdownState === 'stopped' ? (
+        <div className="shutdown-screen" role="dialog" aria-labelledby="shutdown-title" aria-modal="true">
+          <Power />
+          <h2 id="shutdown-title">RiskSim est arrêté</h2>
+          <p>Vous pouvez maintenant fermer cet onglet et supprimer ou déplacer le dossier portable.</p>
+        </div>
+      ) : null}
     </aside>
   );
 }

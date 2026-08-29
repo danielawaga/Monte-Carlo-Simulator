@@ -1,0 +1,51 @@
+RISKSIM - VERSION PORTABLE WINDOWS X64
+======================================
+
+Cette distribution contient le moteur Python, l'API locale, l'interface React
+et toutes les bibliotheques necessaires. Il ne faut installer ni Python, ni
+Node.js, ni npm sur le poste de test.
+
+UTILISATION NORMALE
+-------------------
+
+1. Decompresser entierement le fichier ZIP dans un dossier local.
+2. Ouvrir le dossier RiskSim-Portable.
+3. Double-cliquer sur RiskSim.exe.
+4. Conserver le terminal ouvert. Il indique les etapes de demarrage et les
+   erreurs eventuelles.
+5. Attendre l'ouverture automatique du navigateur. Le premier lancement peut
+   prendre quelques secondes.
+
+Un second double-clic sur RiskSim.exe ne lance pas un second moteur : il rouvre
+simplement l'instance qui fonctionne deja.
+
+Ne pas sortir RiskSim.exe de son dossier : le sous-dossier _internal contient
+les bibliotheques embarquees dont l'application a besoin.
+
+EN CAS D'ECHEC
+--------------
+
+Le terminal de RiskSim affiche directement le diagnostic. Faire une capture du
+message ou transmettre le fichier RiskSim-erreur-demarrage.txt cree a cote de
+RiskSim.exe.
+
+FERMETURE PROPRE
+----------------
+
+Utiliser l'une des methodes suivantes :
+
+- saisir exit, quit ou q dans le terminal puis appuyer sur Entree ;
+- appuyer sur Ctrl+C dans le terminal ;
+- utiliser "Quitter RiskSim" en bas du panneau lateral de l'interface.
+
+Attendre le message "RiskSim est arrete" avant de fermer le terminal, supprimer
+ou deplacer le dossier portable. Fermer uniquement l'onglet du navigateur
+n'arrete pas le moteur local.
+
+SECURITE ET DONNEES
+-------------------
+
+L'application ecoute uniquement sur 127.0.0.1. Les registres et simulations
+restent sur le poste dans le profil Windows de l'utilisateur. L'application
+n'est pas signee numeriquement ; Windows SmartScreen peut donc demander une
+confirmation avant le premier lancement.

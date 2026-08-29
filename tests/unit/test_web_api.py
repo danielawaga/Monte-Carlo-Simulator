@@ -75,6 +75,13 @@ def test_health_reports_a_working_engine(client: TestClient) -> None:
     assert response.json() == {"status": "ok", "engine": "monte-carlo-simulator"}
 
 
+def test_shutdown_requires_the_packaged_launcher(client: TestClient) -> None:
+    response = client.post("/api/shutdown")
+
+    assert response.status_code == 409
+    assert "application portable" in response.json()["detail"]
+
+
 def test_simulation_rejects_non_xlsx_upload(client: TestClient) -> None:
     response = client.post(
         "/api/simulate",

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 import tempfile
+import threading
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
@@ -359,6 +360,21 @@ async def _read_xlsx(file: UploadFile) -> bytes:
 def health() -> dict[str, str]:
     """Public probe, also used by the interface to confirm the engine answers."""
     return {"status": "ok", "engine": "monte-carlo-simulator"}
+
+
+@app.post("/api/shutdown")
+def shutdown(request: Request) -> dict[str, str]:
+    """Stop the local packaged server after its response reaches the browser."""
+    callback = getattr(request.app.state, "shutdown_callback", None)
+    if callback is None:
+        raise HTTPException(
+            status_code=409,
+            detail="L'arrêt intégré est disponible uniquement dans l'application portable.",
+        )
+    timer = threading.Timer(0.25, callback)
+    timer.daemon = True
+    timer.start()
+    return {"status": "shutting-down"}
 
 
 @app.get("/api/registers")
