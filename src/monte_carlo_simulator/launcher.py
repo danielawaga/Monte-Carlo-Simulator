@@ -86,21 +86,27 @@ def _acquire_single_instance_mutex() -> tuple[int | None, bool]:
     if not is_frozen() or os.name != "nt":
         return None, False
 
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    # These Windows-only ctypes attributes are absent from the Linux type stubs
+    # used by CI. The branch above guarantees they are resolved only on Windows.
+    win_dll = getattr(ctypes, "WinDLL")  # noqa: B009
+    get_last_error = getattr(ctypes, "get_last_error")  # noqa: B009
+    win_error = getattr(ctypes, "WinError")  # noqa: B009
+    kernel32 = win_dll("kernel32", use_last_error=True)
     create_mutex = kernel32.CreateMutexW
     create_mutex.argtypes = [ctypes.c_void_p, ctypes.c_bool, ctypes.c_wchar_p]
     create_mutex.restype = ctypes.c_void_p
     handle = create_mutex(None, False, SINGLE_INSTANCE_MUTEX_NAME)
     if not handle:
-        raise ctypes.WinError(ctypes.get_last_error())
-    already_exists = ctypes.get_last_error() == WINDOWS_ERROR_ALREADY_EXISTS
+        raise win_error(get_last_error())
+    already_exists = get_last_error() == WINDOWS_ERROR_ALREADY_EXISTS
     return int(handle), already_exists
 
 
 def _release_single_instance_mutex(handle: int | None) -> None:
     if handle is None or os.name != "nt":
         return
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    win_dll = getattr(ctypes, "WinDLL")  # noqa: B009
+    kernel32 = win_dll("kernel32", use_last_error=True)
     close_handle = kernel32.CloseHandle
     close_handle.argtypes = [ctypes.c_void_p]
     close_handle.restype = ctypes.c_bool
